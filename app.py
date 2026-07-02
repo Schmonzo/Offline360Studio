@@ -24,6 +24,8 @@ DB_PATH = DATA_DIR / "panorama_studio.db"
 
 PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 VIDEO_EXTENSIONS = {".mp4", ".m4v", ".mov"}
+MIN_START_FOV = math.radians(25)
+MAX_START_FOV = math.radians(165)
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024 * 1024  # 25 GB
@@ -71,12 +73,18 @@ def init_db() -> None:
                 description TEXT DEFAULT '',
                 favorite INTEGER DEFAULT 0,
                 visible INTEGER DEFAULT 1,
+                start_yaw REAL NULL,
+                start_pitch REAL NULL,
+                start_fov REAL NULL,
                 created_at REAL,
                 updated_at REAL
             )
             """
         )
         ensure_column(conn, "media", "category", "TEXT DEFAULT ''")
+        ensure_column(conn, "media", "start_yaw", "REAL NULL")
+        ensure_column(conn, "media", "start_pitch", "REAL NULL")
+        ensure_column(conn, "media", "start_fov", "REAL NULL")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS hotspots (
@@ -189,7 +197,8 @@ def media_rows(include_hidden: bool = True) -> list[dict[str, Any]]:
         rows = conn.execute(
             f"""
             SELECT id, type, file_path, thumb_path, title, project, category, description,
-                   favorite, visible, created_at, updated_at
+                   favorite, visible, start_yaw, start_pitch, start_fov,
+                   created_at, updated_at
             FROM media
             {where}
             ORDER BY project COLLATE NOCASE, favorite DESC, title COLLATE NOCASE
@@ -340,6 +349,55 @@ def hotspot_payload(row: sqlite3.Row) -> dict[str, Any]:
     return dict(row)
 
 
+def validate_start_view(data: dict[str, Any]):
+    allowed = {"yaw", "pitch", "fov"}
+    unknown_fields = set(data) - allowed
+    if unknown_fields:
+        return None, api_error(
+            "invalid_field",
+            "Unbekannte Startansicht-Felder: " + ", ".join(sorted(unknown_fields)),
+            400,
+        )
+    if set(data) != allowed:
+        return None, api_error(
+            "invalid_start_view",
+            "yaw, pitch und fov müssen vollständig angegeben werden.",
+            400,
+        )
+
+    values: dict[str, float] = {}
+    for field in ("yaw", "pitch", "fov"):
+        value = data[field]
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None, api_error(
+                "invalid_start_view",
+                "yaw, pitch und fov müssen endliche Zahlen sein.",
+                400,
+            )
+        value = float(value)
+        if not math.isfinite(value):
+            return None, api_error(
+                "invalid_start_view",
+                "yaw, pitch und fov müssen endliche Zahlen sein.",
+                400,
+            )
+        values[field] = value
+
+    if not -math.pi / 2 <= values["pitch"] <= math.pi / 2:
+        return None, api_error(
+            "invalid_pitch",
+            "pitch muss zwischen -π/2 und π/2 liegen.",
+            400,
+        )
+    if not MIN_START_FOV <= values["fov"] <= MAX_START_FOV:
+        return None, api_error(
+            "invalid_fov",
+            "fov muss zwischen 25° und 165° liegen.",
+            400,
+        )
+    return values, None
+
+
 @app.route("/")
 def index():
     return app.send_static_file("index.html")
@@ -348,6 +406,62 @@ def index():
 @app.route("/api/media")
 def api_media():
     return jsonify({"items": media_rows(), "stats": stats_payload()})
+
+
+@app.route("/api/media/<int:media_id>/start-view", methods=["PUT", "DELETE"])
+def api_media_start_view(media_id: int):
+    with db() as conn:
+        media = media_row(conn, media_id)
+        if media is None:
+            return api_error("media_not_found", "Das Medium wurde nicht gefunden.", 404)
+        if media["type"] != "photo":
+            return api_error(
+                "invalid_media_type",
+                "Eine Startansicht kann nur für Foto-Medien gespeichert werden.",
+                400,
+            )
+
+        if request.method == "DELETE":
+            values = {"yaw": None, "pitch": None, "fov": None}
+        else:
+            payload = request.get_json(silent=True)
+            if not isinstance(payload, dict):
+                return api_error(
+                    "invalid_json",
+                    "Der Request-Body muss ein JSON-Objekt sein.",
+                    400,
+                )
+            values, validation_error = validate_start_view(payload)
+            if validation_error:
+                return validation_error
+
+        conn.execute(
+            """
+            UPDATE media
+            SET start_yaw = ?, start_pitch = ?, start_fov = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                values["yaw"],
+                values["pitch"],
+                values["fov"],
+                time.time(),
+                media_id,
+            ),
+        )
+        conn.commit()
+
+    return jsonify(
+        {
+            "status": "ok",
+            "item": {
+                "id": media_id,
+                "start_yaw": values["yaw"],
+                "start_pitch": values["pitch"],
+                "start_fov": values["fov"],
+            },
+        }
+    )
 
 
 @app.route("/api/media/<int:media_id>/hotspots")

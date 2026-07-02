@@ -60,6 +60,8 @@ code { color: #ffd3b5; }
 .drop-zone { position:relative; display:grid; place-items:center; gap:8px; min-height:150px; border:2px dashed rgba(255,255,255,.25); border-radius:18px; color:var(--muted); margin:14px 0; text-align:center; }
 .drop-zone.dragover { border-color:var(--accent); color:var(--text); background:rgba(255,122,24,.08); }
 .drop-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+.start-view-controls { display:grid; gap:8px; margin:0 0 14px; }
+.start-view-controls.hidden { display:none; }
 .add-hotspot-btn { width:100%; margin:0 0 14px; border-color:var(--accent); }
 .edit-form { display:flex; flex-direction:column; gap:12px; }
 .admin-upload-project input, .edit-form input, .edit-form textarea { background:#0f1116; color:var(--text); border:1px solid var(--line); border-radius:12px; padding:10px; }
