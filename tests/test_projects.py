@@ -116,6 +116,7 @@ class ProjectApiTests(unittest.TestCase):
         listed = self.client.get("/api/projects")
         self.assertEqual(listed.status_code, 200)
         self.assertEqual(listed.get_json()["items"][0]["media_count"], 0)
+        self.assertIsNone(listed.get_json()["items"][0]["cover_media"])
 
         updated = self.client.patch(
             f"/api/projects/{project['id']}",
@@ -210,7 +211,20 @@ class ProjectApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         item = response.get_json()["item"]
         self.assertEqual(item["cover_media_id"], self.video)
+        self.assertEqual(
+            item["cover_media"],
+            {
+                "id": self.video,
+                "type": "video",
+                "file_path": "media/video.mp4",
+                "thumb_path": None,
+                "title": "video.mp4",
+            },
+        )
         self.assertEqual(item["start_media_id"], self.photo_a)
+        listed = self.client.get("/api/projects").get_json()["items"][0]
+        self.assertEqual(listed["cover_media"]["id"], self.video)
+        self.assertEqual(listed["cover_media"]["type"], "video")
         self.assert_error(
             self.client.patch(url, json={"start_media_id": self.video}),
             400,
@@ -298,6 +312,12 @@ class ProjectApiTests(unittest.TestCase):
                 ).fetchone()[0],
                 0,
             )
+        listed = self.client.get("/api/projects").get_json()["items"]
+        deleted_cover_project = next(
+            item for item in listed if item["id"] == other["id"]
+        )
+        self.assertIsNone(deleted_cover_project["cover_media_id"])
+        self.assertIsNone(deleted_cover_project["cover_media"])
 
 
 if __name__ == "__main__":

@@ -3,6 +3,12 @@ let projectMediaItems = [];
 let editedProject = null;
 let activeTour = null;
 let projectRequestPending = false;
+let projectsLoaded = false;
+let mediaLoaded = false;
+let restorationAttempted = false;
+
+const ACTIVE_PROJECT_KEY = 'ps_active_project_id';
+const ACTIVE_PROJECT_MEDIA_KEY = 'ps_active_project_media_id';
 
 const tourSelect = document.getElementById('tourSelect');
 const tourNavigation = document.getElementById('tourNavigation');
@@ -21,6 +27,31 @@ const projectMediaEditor = document.getElementById('projectMediaEditor');
 const projectMediaSelect = document.getElementById('projectMediaSelect');
 const addProjectMediaBtn = document.getElementById('addProjectMediaBtn');
 const projectMediaList = document.getElementById('projectMediaList');
+const projectCardsSection = document.getElementById('projectCardsSection');
+const projectCards = document.getElementById('projectCards');
+const projectCoverPreview = document.getElementById('projectCoverPreview');
+
+function storedValue(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function storeValue(key, value) {
+  try {
+    if (value === null || value === undefined || value === '') localStorage.removeItem(key);
+    else localStorage.setItem(key, String(value));
+  } catch {
+    // The application remains usable when browser storage is unavailable.
+  }
+}
+
+function clearStoredTour() {
+  storeValue(ACTIVE_PROJECT_KEY, null);
+  storeValue(ACTIVE_PROJECT_MEDIA_KEY, null);
+}
 
 function option(value, label) {
   const element = document.createElement('option');
@@ -61,6 +92,7 @@ function fillSelect(select, firstLabel, selectedValue) {
 function renderProjectSelectors() {
   fillSelect(tourSelect, 'Keine Tour (Galerie)', activeTour?.id);
   fillSelect(adminProjectSelect, 'Projekt auswählen', editedProject?.id);
+  renderProjectCards();
   if (typeof updateStats === 'function') updateStats();
 }
 
@@ -68,7 +100,9 @@ async function loadProjects() {
   try {
     const data = await projectRequest('/api/projects');
     projectSummaries = data.items || [];
+    projectsLoaded = true;
     renderProjectSelectors();
+    restoreStoredTour();
   } catch (error) {
     setProjectError(error.message);
   }
@@ -89,6 +123,59 @@ function canonicalTourItems() {
 
 function visibleTourItems() {
   return (canonicalTourItems() || []).filter(item => item.visible);
+}
+
+function coverPreview(cover, className) {
+  if (cover?.type === 'photo' && (cover.thumb_path || cover.file_path)) {
+    const image = document.createElement('img');
+    image.className = className;
+    image.src = `/${cover.thumb_path || cover.file_path}`;
+    image.loading = 'lazy';
+    image.alt = '';
+    return image;
+  }
+  const placeholder = document.createElement('div');
+  placeholder.className = `${className} project-cover-placeholder`;
+  placeholder.textContent = cover?.type === 'video' ? 'Video-Cover' : 'Kein Cover';
+  return placeholder;
+}
+
+function renderProjectCards() {
+  projectCards.replaceChildren();
+  projectCardsSection.classList.toggle('hidden', projectSummaries.length === 0);
+  projectSummaries.forEach(project => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'project-card';
+    card.classList.toggle('active', activeTour?.id === project.id);
+    card.setAttribute('aria-pressed', activeTour?.id === project.id ? 'true' : 'false');
+
+    const visual = document.createElement('span');
+    visual.className = 'project-card-visual';
+    visual.appendChild(coverPreview(project.cover_media, 'project-card-cover'));
+    if (project.start_media_id) {
+      const startBadge = document.createElement('span');
+      startBadge.className = 'project-start-badge';
+      startBadge.textContent = 'Startpanorama';
+      visual.appendChild(startBadge);
+    }
+
+    const body = document.createElement('span');
+    body.className = 'project-card-body';
+    const name = document.createElement('strong');
+    name.className = 'project-card-name';
+    name.textContent = project.name;
+    const description = document.createElement('span');
+    description.className = 'project-card-description';
+    description.textContent = project.description || 'Keine Beschreibung';
+    const count = document.createElement('span');
+    count.className = 'project-card-count';
+    count.textContent = `${project.media_count || 0} ${project.media_count === 1 ? 'Medium' : 'Medien'}`;
+    body.append(name, description, count);
+    card.append(visual, body);
+    card.addEventListener('click', () => selectTour(project.id));
+    projectCards.appendChild(card);
+  });
 }
 
 function currentTourIndex() {
@@ -121,32 +208,59 @@ function moveInTour(offset) {
   openTourItem(index + offset);
 }
 
-async function selectTour(projectId) {
+async function selectTour(projectId, options = {}) {
   if (!projectId) {
     activeTour = null;
+    clearStoredTour();
     projectFilter.disabled = false;
+    renderProjectSelectors();
     updateTourNavigation();
     renderGallery();
     return;
   }
   try {
     activeTour = await fetchProject(projectId);
+    storeValue(ACTIVE_PROJECT_KEY, activeTour.id);
     projectFilter.value = '';
     projectFilter.disabled = true;
     renderProjectSelectors();
     renderGallery();
     const items = visibleTourItems();
+    const restoredIndex = options.mediaId
+      ? items.findIndex(item => String(item.id) === String(options.mediaId))
+      : -1;
     const startIndex = items.findIndex(item => item.id === activeTour.start_media_id);
-    if (startIndex >= 0) openTourItem(startIndex);
+    if (restoredIndex >= 0) openTourItem(restoredIndex);
+    else if (startIndex >= 0) openTourItem(startIndex);
     else if (items.length) openTourItem(0);
-    else updateTourNavigation();
+    else {
+      storeValue(ACTIVE_PROJECT_MEDIA_KEY, null);
+      updateTourNavigation();
+    }
   } catch (error) {
     activeTour = null;
+    if (String(storedValue(ACTIVE_PROJECT_KEY)) === String(projectId)) clearStoredTour();
     tourSelect.value = '';
     projectFilter.disabled = false;
     showNavigationMessage(error.message);
+    renderProjectSelectors();
     renderGallery();
   }
+}
+
+function restoreStoredTour() {
+  if (restorationAttempted || !projectsLoaded || !mediaLoaded) return;
+  restorationAttempted = true;
+  const projectId = storedValue(ACTIVE_PROJECT_KEY);
+  if (!projectId) return;
+  const exists = projectSummaries.some(project => String(project.id) === projectId);
+  if (!exists) {
+    clearStoredTour();
+    renderProjectSelectors();
+    renderGallery();
+    return;
+  }
+  selectTour(projectId, { mediaId: storedValue(ACTIVE_PROJECT_MEDIA_KEY) });
 }
 
 function setProjectPending(pending) {
@@ -225,6 +339,15 @@ function renderProjectMedia() {
   });
 }
 
+function renderProjectCoverPreview() {
+  projectCoverPreview.replaceChildren();
+  if (!editedProject) return;
+  const cover = editedProject.cover_media
+    || editedProject.media.find(item => item.id === editedProject.cover_media_id)
+    || null;
+  projectCoverPreview.appendChild(coverPreview(cover, 'project-cover-preview-media'));
+}
+
 function renderProjectEditor() {
   adminProjectSelect.value = editedProject ? String(editedProject.id) : '';
   projectName.value = editedProject?.name || '';
@@ -232,17 +355,20 @@ function renderProjectEditor() {
   saveProjectBtn.textContent = editedProject ? 'Änderungen speichern' : 'Projekt anlegen';
   deleteProjectBtn.disabled = projectRequestPending || !editedProject;
   projectMediaEditor.classList.toggle('hidden', !editedProject);
+  renderProjectCoverPreview();
   renderAvailableMedia();
   renderProjectMedia();
 }
 
 function updateProjectState(project) {
   editedProject = project;
+  const coverMedia = project.media.find(item => item.id === project.cover_media_id) || null;
   const summary = {
     id: project.id,
     name: project.name,
     description: project.description,
     cover_media_id: project.cover_media_id,
+    cover_media: coverMedia,
     start_media_id: project.start_media_id,
     created_at: project.created_at,
     updated_at: project.updated_at,
@@ -301,6 +427,7 @@ async function deleteProject() {
     await projectRequest(`/api/projects/${projectId}`, { method: 'DELETE' });
     projectSummaries = projectSummaries.filter(item => item.id !== projectId);
     editedProject = null;
+    if (String(storedValue(ACTIVE_PROJECT_KEY)) === String(projectId)) clearStoredTour();
     if (activeTour?.id === projectId) {
       activeTour = null;
       projectFilter.disabled = false;
@@ -434,7 +561,10 @@ document.addEventListener('keydown', event => {
 window.projectUi = {
   setMediaItems(items) {
     projectMediaItems = Array.isArray(items) ? items : [];
+    mediaLoaded = true;
     renderAvailableMedia();
+    renderProjectCards();
+    restoreStoredTour();
   },
   setAdminMode() {
     setProjectError();
@@ -449,7 +579,10 @@ window.projectUi = {
   getProjectCount() {
     return projectSummaries.length;
   },
-  onMediaSelected() {
+  onMediaSelected(item) {
+    if (activeTour && visibleTourItems().some(candidate => candidate.id === item?.id)) {
+      storeValue(ACTIVE_PROJECT_MEDIA_KEY, item.id);
+    }
     updateTourNavigation();
   }
 };

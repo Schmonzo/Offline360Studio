@@ -49,6 +49,11 @@
       <button id="gridViewBtn" class="toggle-btn">Kacheln</button>
     </div>
 
+    <section id="projectCardsSection" class="project-cards-section hidden" aria-labelledby="projectCardsTitle">
+      <h2 id="projectCardsTitle">Projekte</h2>
+      <div id="projectCards" class="project-cards"></div>
+    </section>
+
     <section id="gallery" class="gallery"></section>
   </aside>
 
@@ -120,6 +125,10 @@
       </form>
       <p id="projectError" class="form-error hidden" role="alert"></p>
       <div id="projectMediaEditor" class="project-media-editor hidden">
+        <div class="project-cover-status">
+          <span>Aktuelles Cover</span>
+          <div id="projectCoverPreview" class="project-cover-preview"></div>
+        </div>
         <div class="project-media-add">
           <select id="projectMediaSelect" aria-label="Medium hinzufügen"></select>
           <button id="addProjectMediaBtn" type="button">Hinzufügen</button>
