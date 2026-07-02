@@ -26,6 +26,11 @@ async function loadMedia() {
   const res = await fetch('/api/media');
   const data = await res.json();
   mediaItems = data.items || [];
+  window.hotspotAdmin?.setMediaItems(mediaItems);
+  if (selectedItem) {
+    selectedItem = mediaItems.find(item => item.id === selectedItem.id) || null;
+    window.hotspotAdmin?.setCurrentItem(selectedItem);
+  }
   stats = data.stats || null;
   updateStats();
   updateFilters();
@@ -110,10 +115,48 @@ function renderGallery() {
 
 function selectItem(item) {
   selectedItem = item;
+  window.hotspotAdmin?.setCurrentItem(item);
   fillForm(item);
   renderGallery();
   loadViewer(item);
 }
+
+function showNavigationMessage(message) {
+  if (window.viewerControls?.openInfoDialog) {
+    window.viewerControls.openInfoDialog('Panorama nicht verfügbar', message);
+  } else {
+    window.alert(message);
+  }
+}
+
+function openMediaById(mediaId) {
+  const item = mediaItems.find(candidate => String(candidate.id) === String(mediaId));
+  if (!item) {
+    showNavigationMessage('Das verknüpfte Zielpanorama wurde nicht gefunden.');
+    return false;
+  }
+  if (!item.visible) {
+    showNavigationMessage('Das verknüpfte Zielpanorama ist derzeit nicht sichtbar.');
+    return false;
+  }
+  if (item.type !== 'photo') {
+    showNavigationMessage('Das verknüpfte Ziel ist kein Panorama.');
+    return false;
+  }
+
+  if (!filteredItems().some(candidate => candidate.id === item.id)) {
+    searchInput.value = '';
+    projectFilter.value = '';
+    categoryFilter.value = '';
+    typeFilter.value = '';
+    favoritesOnly = false;
+  }
+  selectItem(item);
+  return true;
+}
+
+window.openMediaById = openMediaById;
+window.viewerControls?.setPanoramaNavigationCallback(openMediaById);
 
 function fillForm(item) {
   document.getElementById('editTitle').value = item.title || '';
@@ -145,8 +188,13 @@ async function uploadFiles(files) {
 }
 
 document.getElementById('rescanBtn').onclick = rescan;
-document.getElementById('adminToggleBtn').onclick = () => adminPanel.classList.toggle('hidden');
-document.getElementById('closeAdminBtn').onclick = () => adminPanel.classList.add('hidden');
+function setAdminMode(enabled) {
+  adminPanel.classList.toggle('hidden', !enabled);
+  window.hotspotAdmin?.setAdminMode(enabled);
+}
+
+document.getElementById('adminToggleBtn').onclick = () => setAdminMode(adminPanel.classList.contains('hidden'));
+document.getElementById('closeAdminBtn').onclick = () => setAdminMode(false);
 document.getElementById('fullscreenBtn').onclick = () => window.viewerControls?.toggleFullscreen();
 document.getElementById('zoomInBtn').onclick = () => window.viewerControls?.zoomIn();
 document.getElementById('zoomOutBtn').onclick = () => window.viewerControls?.zoomOut();
