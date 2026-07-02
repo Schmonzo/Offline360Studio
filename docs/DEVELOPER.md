@@ -1,26 +1,17 @@
-\# Panorama Studio Developer Guide
+# Panorama Studio Developer Guide
 
+## Ziel
 
+Panorama Studio ist eine lokale Offline-Anwendung zur Präsentation und Verwaltung von 360°-Fotos und 360°-Videos.
 
-\## Branch-Modell
+## Branch-Modell
 
+- `main`: stabile Releases
+- `develop`: laufende Entwicklung
+- `feature/*`: einzelne Arbeitspakete
 
-
-\- `main`: stabile Releases
-
-\- `develop`: integrierte Entwicklung
-
-\- `feature/\*`: einzelne Arbeitspakete
-
-
-
-\## Lokaler Start
-
-
+## Lokaler Start
 
 ```powershell
-
-cd C:\\PanoramaStudioRepo
-
+cd C:\PanoramaStudioRepo
 python app.py
-
