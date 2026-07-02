@@ -199,6 +199,9 @@ document.getElementById('fullscreenBtn').onclick = () => window.viewerControls?.
 document.getElementById('zoomInBtn').onclick = () => window.viewerControls?.zoomIn();
 document.getElementById('zoomOutBtn').onclick = () => window.viewerControls?.zoomOut();
 document.getElementById('homeBtn').onclick = () => window.viewerControls?.resetView();
+document.getElementById('normalModeBtn').onclick = () => window.viewerControls?.setProjectionMode('normal');
+document.getElementById('tinyPlanetBtn').onclick = () => window.viewerControls?.toggleTinyPlanet();
+document.getElementById('rabbitHoleBtn').onclick = () => window.viewerControls?.toggleRabbitHole();
 document.getElementById('cinematicBtn').onclick = () => window.viewerControls?.toggleCinematic();
 searchInput.oninput = renderGallery;
 projectFilter.onchange = renderGallery;
