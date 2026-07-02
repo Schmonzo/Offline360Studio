@@ -838,6 +838,12 @@ document.addEventListener('keydown', (event) => {
       ArrowUp: [0, 1],
       ArrowDown: [0, -1]
     };
+    if (
+      window.projectUi?.isTourActive() &&
+      ['ArrowLeft', 'ArrowRight'].includes(event.key)
+    ) {
+      return;
+    }
     if (directions[event.key]) {
       event.preventDefault();
       currentVideoViewer.lookBy(...directions[event.key]);
