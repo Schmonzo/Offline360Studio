@@ -18,15 +18,13 @@ const gridViewBtn = document.getElementById('gridViewBtn');
 
 function setStatus(message) { statusBox.textContent = 'Status: ' + message; }
 function mediaUrl(path) { return '/' + path; }
-function escapeHtml(value) {
-  return String(value || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
-}
 
 async function loadMedia() {
   const res = await fetch('/api/media');
   const data = await res.json();
   mediaItems = data.items || [];
   window.hotspotAdmin?.setMediaItems(mediaItems);
+  window.projectUi?.setMediaItems(mediaItems);
   if (selectedItem) {
     selectedItem = mediaItems.find(item => item.id === selectedItem.id) || null;
     window.hotspotAdmin?.setCurrentItem(selectedItem);
@@ -40,17 +38,36 @@ async function loadMedia() {
 function updateStats() {
   const el = document.getElementById('statsGrid');
   const s = stats || { photos:0, videos:0, favorites:0, projects:[] };
-  el.innerHTML = `
-    <div><strong>${s.photos || 0}</strong><span>Fotos</span></div>
-    <div><strong>${s.videos || 0}</strong><span>Videos</span></div>
-    <div><strong>${s.favorites || 0}</strong><span>Favoriten</span></div>
-    <div><strong>${(s.projects || []).length}</strong><span>Projekte</span></div>
-  `;
+  el.replaceChildren();
+  [
+    [s.photos || 0, 'Fotos'],
+    [s.videos || 0, 'Videos'],
+    [s.favorites || 0, 'Favoriten'],
+    [window.projectUi?.getProjectCount() ?? (s.projects || []).length, 'Projekte']
+  ].forEach(([value, label]) => {
+    const cell = document.createElement('div');
+    const strong = document.createElement('strong');
+    const span = document.createElement('span');
+    strong.textContent = String(value);
+    span.textContent = label;
+    cell.append(strong, span);
+    el.appendChild(cell);
+  });
 }
 
 function setSelectOptions(select, values, allLabel) {
   const old = select.value;
-  select.innerHTML = `<option value="">${allLabel}</option>` + values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join('');
+  select.replaceChildren();
+  const allOption = document.createElement('option');
+  allOption.value = '';
+  allOption.textContent = allLabel;
+  select.appendChild(allOption);
+  values.forEach(value => {
+    const itemOption = document.createElement('option');
+    itemOption.value = value;
+    itemOption.textContent = value;
+    select.appendChild(itemOption);
+  });
   if (values.includes(old)) select.value = old;
 }
 
@@ -66,24 +83,44 @@ function filteredItems() {
   const project = projectFilter.value;
   const category = categoryFilter.value;
   const type = typeFilter.value;
-  return mediaItems
+  const tourItems = window.projectUi?.getTourItems();
+  return (tourItems || mediaItems)
     .filter(item => item.visible)
     .filter(item => !favoritesOnly || item.favorite)
-    .filter(item => !project || (item.project || 'Default') === project)
+    .filter(item => tourItems || !project || (item.project || 'Default') === project)
     .filter(item => !category || (item.category || '') === category)
     .filter(item => !type || item.type === type)
     .filter(item => !q || [item.title, item.project, item.category, item.description, item.file_path].join(' ').toLowerCase().includes(q));
 }
 
 function itemPreview(item) {
-  if (item.type === 'photo' && item.thumb_path) return `<img class="thumb" src="${mediaUrl(item.thumb_path)}" loading="lazy" />`;
-  return `<div class="video-thumb">${item.type === 'video' ? '🎬' : '📷'}</div>`;
+  if (item.type === 'photo' && item.thumb_path) {
+    const image = document.createElement('img');
+    image.className = 'thumb';
+    image.src = mediaUrl(item.thumb_path);
+    image.loading = 'lazy';
+    image.alt = '';
+    return image;
+  }
+  const preview = document.createElement('div');
+  preview.className = 'video-thumb';
+  preview.textContent = item.type === 'video' ? '🎬' : '📷';
+  return preview;
 }
 
 function itemCard(item) {
   const row = document.createElement('div');
   row.className = 'item' + (selectedItem?.id === item.id ? ' active' : '');
-  row.innerHTML = `${itemPreview(item)}<div class="item-body"><div class="item-title">${item.favorite ? '★ ' : ''}${escapeHtml(item.title)}</div><div class="item-meta">${escapeHtml(item.project || 'Default')}${item.category ? ' · ' + escapeHtml(item.category) : ''} · ${item.type}</div></div>`;
+  const body = document.createElement('div');
+  const title = document.createElement('div');
+  const meta = document.createElement('div');
+  body.className = 'item-body';
+  title.className = 'item-title';
+  meta.className = 'item-meta';
+  title.textContent = `${item.favorite ? '★ ' : ''}${item.title || ''}`;
+  meta.textContent = `${item.project || 'Default'}${item.category ? ' · ' + item.category : ''} · ${item.type || ''}`;
+  body.append(title, meta);
+  row.append(itemPreview(item), body);
   row.onclick = () => selectItem(item);
   return row;
 }
@@ -91,23 +128,35 @@ function itemCard(item) {
 function renderGallery() {
   const items = filteredItems();
   gallery.className = 'gallery ' + (viewMode === 'grid' ? 'grid-mode' : 'list-mode');
-  gallery.innerHTML = '';
+  gallery.replaceChildren();
 
   listViewBtn.classList.toggle('active', viewMode === 'list');
   gridViewBtn.classList.toggle('active', viewMode === 'grid');
   favoritesOnlyBtn.classList.toggle('active', favoritesOnly);
 
   if (!items.length) {
-    gallery.innerHTML = '<div class="no-results">Keine passenden Medien.</div>';
+    const empty = document.createElement('div');
+    empty.className = 'no-results';
+    empty.textContent = 'Keine passenden Medien.';
+    gallery.appendChild(empty);
     return;
   }
 
-  const projects = [...new Set(items.map(i => i.project || 'Default'))];
+  const activeTourName = window.projectUi?.getTourName();
+  const projects = activeTourName
+    ? [activeTourName]
+    : [...new Set(items.map(i => i.project || 'Default'))];
   projects.forEach(project => {
-    const groupItems = items.filter(i => (i.project || 'Default') === project);
+    const groupItems = activeTourName
+      ? items
+      : items.filter(i => (i.project || 'Default') === project);
     const h = document.createElement('div');
+    const name = document.createElement('span');
+    const count = document.createElement('small');
     h.className = 'project-heading';
-    h.innerHTML = `<span>📁 ${escapeHtml(project)}</span><small>${groupItems.length}</small>`;
+    name.textContent = `📁 ${project}`;
+    count.textContent = String(groupItems.length);
+    h.append(name, count);
     gallery.appendChild(h);
     groupItems.forEach(item => gallery.appendChild(itemCard(item)));
   });
@@ -116,6 +165,7 @@ function renderGallery() {
 function selectItem(item) {
   selectedItem = item;
   window.hotspotAdmin?.setCurrentItem(item);
+  window.projectUi?.onMediaSelected(item);
   fillForm(item);
   renderGallery();
   loadViewer(item);
@@ -191,6 +241,7 @@ document.getElementById('rescanBtn').onclick = rescan;
 function setAdminMode(enabled) {
   adminPanel.classList.toggle('hidden', !enabled);
   window.hotspotAdmin?.setAdminMode(enabled);
+  window.projectUi?.setAdminMode(enabled);
 }
 
 document.getElementById('adminToggleBtn').onclick = () => setAdminMode(adminPanel.classList.contains('hidden'));

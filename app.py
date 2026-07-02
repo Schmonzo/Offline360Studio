@@ -87,6 +87,39 @@ def init_db() -> None:
         ensure_column(conn, "media", "start_fov", "REAL NULL")
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS projects (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT DEFAULT '',
+                cover_media_id INTEGER NULL,
+                start_media_id INTEGER NULL,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL,
+                FOREIGN KEY (cover_media_id) REFERENCES media(id) ON DELETE SET NULL,
+                FOREIGN KEY (start_media_id) REFERENCES media(id) ON DELETE SET NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS project_media (
+                project_id INTEGER NOT NULL,
+                media_id INTEGER NOT NULL,
+                sort_order INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY (project_id, media_id),
+                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+                FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_project_media_project_sort
+            ON project_media(project_id, sort_order)
+            """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS hotspots (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 source_media_id INTEGER NOT NULL,
@@ -232,6 +265,154 @@ def media_row(conn: sqlite3.Connection, media_id: int) -> sqlite3.Row | None:
         "SELECT id, type FROM media WHERE id = ?",
         (media_id,),
     ).fetchone()
+
+
+PROJECT_FIELDS = {"name", "description", "cover_media_id", "start_media_id"}
+
+
+def project_row(conn: sqlite3.Connection, project_id: int) -> sqlite3.Row | None:
+    return conn.execute(
+        """
+        SELECT id, name, description, cover_media_id, start_media_id,
+               created_at, updated_at
+        FROM projects
+        WHERE id = ?
+        """,
+        (project_id,),
+    ).fetchone()
+
+
+def project_payload(
+    conn: sqlite3.Connection,
+    row: sqlite3.Row,
+    include_media: bool = True,
+) -> dict[str, Any]:
+    result = dict(row)
+    cover = None
+    if row["cover_media_id"] is not None:
+        cover = conn.execute(
+            """
+            SELECT m.id, m.type, m.file_path, m.thumb_path, m.title
+            FROM media m
+            JOIN project_media pm ON pm.media_id = m.id
+            WHERE pm.project_id = ? AND m.id = ?
+            """,
+            (row["id"], row["cover_media_id"]),
+        ).fetchone()
+    result["cover_media"] = dict(cover) if cover is not None else None
+    if include_media:
+        media = conn.execute(
+            """
+            SELECT m.id, m.type, m.file_path, m.thumb_path, m.title, m.project,
+                   m.category, m.description, m.favorite, m.visible,
+                   m.start_yaw, m.start_pitch, m.start_fov,
+                   m.created_at, m.updated_at, pm.sort_order
+            FROM project_media pm
+            JOIN media m ON m.id = pm.media_id
+            WHERE pm.project_id = ?
+            ORDER BY pm.sort_order, pm.media_id
+            """,
+            (row["id"],),
+        ).fetchall()
+        result["media"] = [dict(item) for item in media]
+        result["media_count"] = len(media)
+    else:
+        result["media_count"] = conn.execute(
+            "SELECT COUNT(*) FROM project_media WHERE project_id = ?",
+            (row["id"],),
+        ).fetchone()[0]
+    return result
+
+
+def parse_project_data(
+    conn: sqlite3.Connection,
+    payload: Any,
+    existing: sqlite3.Row | None = None,
+):
+    if not isinstance(payload, dict):
+        return None, api_error(
+            "invalid_json",
+            "Der Request-Body muss ein JSON-Objekt sein.",
+            400,
+        )
+    unknown = set(payload) - PROJECT_FIELDS
+    if unknown:
+        return None, api_error(
+            "invalid_field",
+            "Unbekannte Projekt-Felder: " + ", ".join(sorted(unknown)),
+            400,
+        )
+    if existing is not None and not payload:
+        return None, api_error(
+            "empty_update",
+            "Mindestens ein Projekt-Feld muss angegeben werden.",
+            400,
+        )
+
+    merged = dict(existing) if existing is not None else {
+        "name": None,
+        "description": "",
+        "cover_media_id": None,
+        "start_media_id": None,
+    }
+    merged.update(payload)
+    if not isinstance(merged["name"], str) or not merged["name"].strip():
+        return None, api_error(
+            "invalid_name",
+            "Der Projektname ist erforderlich.",
+            400,
+        )
+    if not isinstance(merged["description"], str):
+        return None, api_error(
+            "invalid_description",
+            "Die Beschreibung muss eine Zeichenkette sein.",
+            400,
+        )
+
+    project_id = existing["id"] if existing is not None else None
+    for field in ("cover_media_id", "start_media_id"):
+        media_id = merged[field]
+        if media_id is None:
+            continue
+        if isinstance(media_id, bool) or not isinstance(media_id, int):
+            return None, api_error(
+                f"invalid_{field}",
+                f"{field} muss eine Medien-ID oder null sein.",
+                400,
+            )
+        media = media_row(conn, media_id)
+        if media is None:
+            return None, api_error(
+                "media_not_found",
+                "Das Medium wurde nicht gefunden.",
+                404,
+            )
+        assigned = project_id is not None and conn.execute(
+            """
+            SELECT 1 FROM project_media
+            WHERE project_id = ? AND media_id = ?
+            """,
+            (project_id, media_id),
+        ).fetchone()
+        if not assigned:
+            return None, api_error(
+                f"invalid_{field}",
+                f"{field} muss dem Projekt zugeordnet sein.",
+                400,
+            )
+        if field == "start_media_id" and media["type"] != "photo":
+            return None, api_error(
+                "invalid_start_media_id",
+                "Das Startpanorama muss ein Foto sein.",
+                400,
+            )
+
+    return {
+        "name": merged["name"].strip(),
+        "description": merged["description"].strip(),
+        "cover_media_id": merged["cover_media_id"],
+        "start_media_id": merged["start_media_id"],
+    }, None
 
 
 def validate_source_media(conn: sqlite3.Connection, media_id: int):
@@ -406,6 +587,311 @@ def index():
 @app.route("/api/media")
 def api_media():
     return jsonify({"items": media_rows(), "stats": stats_payload()})
+
+
+@app.route("/api/projects", methods=["GET", "POST"])
+def api_projects():
+    init_db()
+    if request.method == "GET":
+        with db() as conn:
+            rows = conn.execute(
+                """
+                SELECT id, name, description, cover_media_id, start_media_id,
+                       created_at, updated_at
+                FROM projects
+                ORDER BY created_at, id
+                """
+            ).fetchall()
+            items = [project_payload(conn, row, include_media=False) for row in rows]
+        return jsonify({"items": items})
+
+    payload = request.get_json(silent=True)
+    with db() as conn:
+        data, validation_error = parse_project_data(conn, payload)
+        if validation_error:
+            return validation_error
+        now = time.time()
+        cursor = conn.execute(
+            """
+            INSERT INTO projects
+            (name, description, cover_media_id, start_media_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data["name"],
+                data["description"],
+                data["cover_media_id"],
+                data["start_media_id"],
+                now,
+                now,
+            ),
+        )
+        row = project_row(conn, int(cursor.lastrowid))
+        result = project_payload(conn, row)
+        conn.commit()
+    return jsonify({"item": result}), 201
+
+
+@app.route("/api/projects/<int:project_id>", methods=["GET", "PATCH", "DELETE"])
+def api_project(project_id: int):
+    init_db()
+    with db() as conn:
+        row = project_row(conn, project_id)
+        if row is None:
+            return api_error(
+                "project_not_found",
+                "Das Projekt wurde nicht gefunden.",
+                404,
+            )
+
+        if request.method == "GET":
+            return jsonify({"item": project_payload(conn, row)})
+
+        if request.method == "DELETE":
+            result = project_payload(conn, row, include_media=False)
+            conn.execute("DELETE FROM projects WHERE id = ?", (project_id,))
+            conn.commit()
+            return jsonify({"status": "ok", "item": result})
+
+        payload = request.get_json(silent=True)
+        data, validation_error = parse_project_data(conn, payload, row)
+        if validation_error:
+            return validation_error
+        conn.execute(
+            """
+            UPDATE projects
+            SET name = ?, description = ?, cover_media_id = ?,
+                start_media_id = ?, updated_at = ?
+            WHERE id = ?
+            """,
+            (
+                data["name"],
+                data["description"],
+                data["cover_media_id"],
+                data["start_media_id"],
+                time.time(),
+                project_id,
+            ),
+        )
+        updated = project_row(conn, project_id)
+        result = project_payload(conn, updated)
+        conn.commit()
+    return jsonify({"item": result})
+
+
+@app.route("/api/projects/<int:project_id>/media", methods=["POST"])
+def api_add_project_media(project_id: int):
+    init_db()
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return api_error(
+            "invalid_json",
+            "Der Request-Body muss ein JSON-Objekt sein.",
+            400,
+        )
+    if set(payload) != {"media_id"}:
+        return api_error(
+            "invalid_field",
+            "Der Request-Body muss genau media_id enthalten.",
+            400,
+        )
+    media_id = payload["media_id"]
+    if isinstance(media_id, bool) or not isinstance(media_id, int):
+        return api_error(
+            "invalid_media_id",
+            "media_id muss eine Ganzzahl sein.",
+            400,
+        )
+
+    with db() as conn:
+        project = project_row(conn, project_id)
+        if project is None:
+            return api_error(
+                "project_not_found",
+                "Das Projekt wurde nicht gefunden.",
+                404,
+            )
+        if media_row(conn, media_id) is None:
+            return api_error(
+                "media_not_found",
+                "Das Medium wurde nicht gefunden.",
+                404,
+            )
+        if conn.execute(
+            """
+            SELECT 1 FROM project_media
+            WHERE project_id = ? AND media_id = ?
+            """,
+            (project_id, media_id),
+        ).fetchone():
+            return api_error(
+                "media_already_assigned",
+                "Das Medium ist dem Projekt bereits zugeordnet.",
+                400,
+            )
+        next_order = conn.execute(
+            """
+            SELECT COALESCE(MAX(sort_order), -1) + 1
+            FROM project_media
+            WHERE project_id = ?
+            """,
+            (project_id,),
+        ).fetchone()[0]
+        conn.execute(
+            """
+            INSERT INTO project_media(project_id, media_id, sort_order)
+            VALUES (?, ?, ?)
+            """,
+            (project_id, media_id, next_order),
+        )
+        conn.execute(
+            "UPDATE projects SET updated_at = ? WHERE id = ?",
+            (time.time(), project_id),
+        )
+        updated = project_row(conn, project_id)
+        result = project_payload(conn, updated)
+        conn.commit()
+    return jsonify({"item": result}), 201
+
+
+@app.route(
+    "/api/projects/<int:project_id>/media/<int:media_id>",
+    methods=["DELETE"],
+)
+def api_remove_project_media(project_id: int, media_id: int):
+    init_db()
+    with db() as conn:
+        project = project_row(conn, project_id)
+        if project is None:
+            return api_error(
+                "project_not_found",
+                "Das Projekt wurde nicht gefunden.",
+                404,
+            )
+        if media_row(conn, media_id) is None:
+            return api_error(
+                "media_not_found",
+                "Das Medium wurde nicht gefunden.",
+                404,
+            )
+        assignment = conn.execute(
+            """
+            SELECT 1 FROM project_media
+            WHERE project_id = ? AND media_id = ?
+            """,
+            (project_id, media_id),
+        ).fetchone()
+        if assignment is None:
+            return api_error(
+                "media_not_assigned",
+                "Das Medium ist dem Projekt nicht zugeordnet.",
+                400,
+            )
+        conn.execute(
+            "DELETE FROM project_media WHERE project_id = ? AND media_id = ?",
+            (project_id, media_id),
+        )
+        conn.execute(
+            """
+            UPDATE projects
+            SET cover_media_id = CASE WHEN cover_media_id = ? THEN NULL ELSE cover_media_id END,
+                start_media_id = CASE WHEN start_media_id = ? THEN NULL ELSE start_media_id END,
+                updated_at = ?
+            WHERE id = ?
+            """,
+            (media_id, media_id, time.time(), project_id),
+        )
+        remaining = conn.execute(
+            """
+            SELECT media_id FROM project_media
+            WHERE project_id = ?
+            ORDER BY sort_order, media_id
+            """,
+            (project_id,),
+        ).fetchall()
+        for sort_order, item in enumerate(remaining):
+            conn.execute(
+                """
+                UPDATE project_media SET sort_order = ?
+                WHERE project_id = ? AND media_id = ?
+                """,
+                (sort_order, project_id, item["media_id"]),
+            )
+        updated = project_row(conn, project_id)
+        result = project_payload(conn, updated)
+        conn.commit()
+    return jsonify({"item": result})
+
+
+@app.route("/api/projects/<int:project_id>/media/order", methods=["PATCH"])
+def api_order_project_media(project_id: int):
+    init_db()
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or set(payload) != {"media_ids"}:
+        return api_error(
+            "invalid_order",
+            "Der Request-Body muss genau media_ids enthalten.",
+            400,
+        )
+    media_ids = payload["media_ids"]
+    if (
+        not isinstance(media_ids, list)
+        or any(isinstance(item, bool) or not isinstance(item, int) for item in media_ids)
+        or len(media_ids) != len(set(media_ids))
+    ):
+        return api_error(
+            "invalid_order",
+            "media_ids muss eine Liste eindeutiger Ganzzahlen sein.",
+            400,
+        )
+
+    with db() as conn:
+        project = project_row(conn, project_id)
+        if project is None:
+            return api_error(
+                "project_not_found",
+                "Das Projekt wurde nicht gefunden.",
+                404,
+            )
+        if any(media_row(conn, media_id) is None for media_id in media_ids):
+            return api_error(
+                "media_not_found",
+                "Mindestens ein Medium wurde nicht gefunden.",
+                404,
+            )
+        assigned_ids = [
+            row["media_id"]
+            for row in conn.execute(
+                """
+                SELECT media_id FROM project_media
+                WHERE project_id = ?
+                ORDER BY sort_order, media_id
+                """,
+                (project_id,),
+            ).fetchall()
+        ]
+        if len(media_ids) != len(assigned_ids) or set(media_ids) != set(assigned_ids):
+            return api_error(
+                "invalid_order",
+                "media_ids muss alle zugeordneten Medien genau einmal enthalten.",
+                400,
+            )
+        for sort_order, media_id in enumerate(media_ids):
+            conn.execute(
+                """
+                UPDATE project_media SET sort_order = ?
+                WHERE project_id = ? AND media_id = ?
+                """,
+                (sort_order, project_id, media_id),
+            )
+        conn.execute(
+            "UPDATE projects SET updated_at = ? WHERE id = ?",
+            (time.time(), project_id),
+        )
+        updated = project_row(conn, project_id)
+        result = project_payload(conn, updated)
+        conn.commit()
+    return jsonify({"item": result})
 
 
 @app.route("/api/media/<int:media_id>/start-view", methods=["PUT", "DELETE"])

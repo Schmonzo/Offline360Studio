@@ -28,6 +28,12 @@
       <button id="adminToggleBtn">Admin</button>
     </div>
 
+    <label class="tour-select-label" for="tourSelect">Tour
+      <select id="tourSelect">
+        <option value="">Keine Tour (Galerie)</option>
+      </select>
+    </label>
+
     <input id="searchInput" class="search" placeholder="Suchen…" />
 
     <div class="filter-row">
@@ -42,6 +48,11 @@
       <button id="listViewBtn" class="toggle-btn active">Liste</button>
       <button id="gridViewBtn" class="toggle-btn">Kacheln</button>
     </div>
+
+    <section id="projectCardsSection" class="project-cards-section hidden" aria-labelledby="projectCardsTitle">
+      <h2 id="projectCardsTitle">Projekte</h2>
+      <div id="projectCards" class="project-cards"></div>
+    </section>
 
     <section id="gallery" class="gallery"></section>
   </aside>
@@ -61,6 +72,12 @@
       </div>
       <button id="fullscreenBtn">Vollbild</button>
     </div>
+
+    <nav id="tourNavigation" class="tour-navigation hidden" aria-label="Tour-Navigation">
+      <button id="tourPreviousBtn" type="button" aria-label="Vorheriges Medium">← Zurück</button>
+      <span id="tourPosition" aria-live="polite">0 / 0</span>
+      <button id="tourNextBtn" type="button" aria-label="Nächstes Medium">Weiter →</button>
+    </nav>
 
     <div class="viewer-controls" aria-label="Viewer Steuerung">
       <div id="viewModeLabel" class="view-mode-label" role="status">Kein Medium</div>
@@ -83,6 +100,42 @@
       <h2>Admin</h2>
       <button id="closeAdminBtn">×</button>
     </div>
+
+    <section id="projectAdmin" class="project-admin">
+      <div class="project-admin-heading">
+        <h3>Projekte und Touren</h3>
+        <button id="newProjectBtn" type="button">Neues Projekt</button>
+      </div>
+      <label>Projekt
+        <select id="adminProjectSelect">
+          <option value="">Projekt auswählen</option>
+        </select>
+      </label>
+      <form id="projectForm" novalidate>
+        <label>Name
+          <input id="projectName" required />
+        </label>
+        <label>Beschreibung
+          <textarea id="projectDescription"></textarea>
+        </label>
+        <div class="project-form-actions">
+          <button id="deleteProjectBtn" class="danger" type="button" disabled>Löschen</button>
+          <button id="saveProjectBtn" type="submit">Projekt anlegen</button>
+        </div>
+      </form>
+      <p id="projectError" class="form-error hidden" role="alert"></p>
+      <div id="projectMediaEditor" class="project-media-editor hidden">
+        <div class="project-cover-status">
+          <span>Aktuelles Cover</span>
+          <div id="projectCoverPreview" class="project-cover-preview"></div>
+        </div>
+        <div class="project-media-add">
+          <select id="projectMediaSelect" aria-label="Medium hinzufügen"></select>
+          <button id="addProjectMediaBtn" type="button">Hinzufügen</button>
+        </div>
+        <ol id="projectMediaList" class="project-media-list"></ol>
+      </div>
+    </section>
 
     <label class="admin-upload-project">Upload-Projekt
       <input id="uploadProject" placeholder="Default" value="Default" />
@@ -167,5 +220,6 @@
   <script src="/static/js/viewer.js"></script>
   <script src="/static/js/admin.js"></script>
   <script src="/static/js/app.js"></script>
+  <script src="/static/js/projects.js"></script>
 </body>
 </html>
