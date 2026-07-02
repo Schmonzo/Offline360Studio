@@ -3,8 +3,12 @@ let hotspotAdminCurrentItem = null;
 let hotspotAdminMediaItems = [];
 let editedHotspot = null;
 let hotspotRequestPending = false;
+let startViewRequestPending = false;
 
 const addHotspotBtn = document.getElementById('addHotspotBtn');
+const startViewControls = document.getElementById('startViewControls');
+const saveStartViewBtn = document.getElementById('saveStartViewBtn');
+const resetStartViewBtn = document.getElementById('resetStartViewBtn');
 const hotspotEditorDialog = document.getElementById('hotspotEditorDialog');
 const hotspotEditorForm = document.getElementById('hotspotEditorForm');
 const hotspotEditorTitle = document.getElementById('hotspotEditorTitle');
@@ -28,6 +32,124 @@ function setHotspotEditorError(message = '') {
 function apiErrorMessage(data, fallback) {
   const message = data?.error?.message;
   return typeof message === 'string' && message.trim() ? message : fallback;
+}
+
+function setHotspotPositionStatus(message) {
+  const statusBox = document.getElementById('statusBox');
+  if (statusBox) statusBox.textContent = `Status: ${message}`;
+}
+
+function hasSavedStartView(item) {
+  return [item?.start_yaw, item?.start_pitch, item?.start_fov].every(Number.isFinite);
+}
+
+function updateStartViewControls() {
+  const isPhoto = hotspotAdminCurrentItem?.type === 'photo';
+  startViewControls.classList.toggle('hidden', !isPhoto);
+  saveStartViewBtn.disabled = !isPhoto || startViewRequestPending;
+  resetStartViewBtn.disabled = !isPhoto || startViewRequestPending || !hasSavedStartView(hotspotAdminCurrentItem);
+}
+
+function setStartViewStatus(message) {
+  const statusBox = document.getElementById('statusBox');
+  if (statusBox) statusBox.textContent = `Status: ${message}`;
+}
+
+function applyStartViewResult(item) {
+  const mediaItem = hotspotAdminMediaItems.find(
+    candidate => String(candidate.id) === String(item.id)
+  );
+  if (mediaItem) Object.assign(mediaItem, item);
+  if (String(hotspotAdminCurrentItem?.id) === String(item.id)) {
+    Object.assign(hotspotAdminCurrentItem, item);
+    window.viewerControls?.setCurrentStartView(item);
+  }
+  updateStartViewControls();
+}
+
+async function saveStartView() {
+  if (startViewRequestPending || hotspotAdminCurrentItem?.type !== 'photo') return;
+  const view = window.viewerControls?.getViewParameters();
+  if (!view) {
+    setStartViewStatus('Das Panorama ist noch nicht bereit.');
+    return;
+  }
+
+  startViewRequestPending = true;
+  updateStartViewControls();
+  try {
+    const response = await fetch(`/api/media/${hotspotAdminCurrentItem.id}/start-view`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(view)
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(apiErrorMessage(
+        data,
+        `Startansicht konnte nicht gespeichert werden (HTTP ${response.status}).`
+      ));
+    }
+    applyStartViewResult(data.item);
+    setStartViewStatus('Startansicht gespeichert.');
+  } catch (error) {
+    setStartViewStatus(`Fehler beim Speichern der Startansicht: ${error.message || 'Unbekannter Fehler.'}`);
+  } finally {
+    startViewRequestPending = false;
+    updateStartViewControls();
+  }
+}
+
+async function resetStartView() {
+  if (startViewRequestPending || hotspotAdminCurrentItem?.type !== 'photo') return;
+  startViewRequestPending = true;
+  updateStartViewControls();
+  try {
+    const response = await fetch(`/api/media/${hotspotAdminCurrentItem.id}/start-view`, {
+      method: 'DELETE'
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(apiErrorMessage(
+        data,
+        `Startansicht konnte nicht zurückgesetzt werden (HTTP ${response.status}).`
+      ));
+    }
+    applyStartViewResult(data.item);
+    setStartViewStatus('Startansicht zurückgesetzt; es gelten wieder die Standardwerte.');
+  } catch (error) {
+    setStartViewStatus(`Fehler beim Zurücksetzen der Startansicht: ${error.message || 'Unbekannter Fehler.'}`);
+  } finally {
+    startViewRequestPending = false;
+    updateStartViewControls();
+  }
+}
+
+async function saveHotspotPosition(hotspot, position) {
+  try {
+    const response = await fetch(`/api/hotspots/${hotspot.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        yaw: position.yaw,
+        pitch: position.pitch
+      })
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(apiErrorMessage(
+        data,
+        `Position konnte nicht gespeichert werden (HTTP ${response.status}).`
+      ));
+    }
+    setHotspotPositionStatus('Hotspot-Position gespeichert.');
+    return data?.item;
+  } catch (error) {
+    setHotspotPositionStatus(
+      `Fehler beim Speichern der Hotspot-Position: ${error.message || 'Unbekannter Fehler.'}`
+    );
+    throw error;
+  }
 }
 
 function updateHotspotTargetState() {
@@ -215,6 +337,7 @@ function setCurrentItem(item) {
   hotspotAdminCurrentItem = item || null;
   addHotspotBtn.classList.toggle('hidden', hotspotAdminCurrentItem?.type !== 'photo');
   addHotspotBtn.disabled = hotspotAdminCurrentItem?.type !== 'photo';
+  updateStartViewControls();
   if (changed) {
     window.viewerControls?.cancelHotspotPlacement();
     closeHotspotEditor();
@@ -226,6 +349,8 @@ function setMediaItems(items) {
 }
 
 addHotspotBtn.addEventListener('click', beginHotspotPlacement);
+saveStartViewBtn.addEventListener('click', saveStartView);
+resetStartViewBtn.addEventListener('click', resetStartView);
 hotspotType.addEventListener('change', updateHotspotTargetState);
 hotspotEditorForm.addEventListener('submit', saveHotspot);
 cancelHotspotBtn.addEventListener('click', closeHotspotEditor);
@@ -244,6 +369,7 @@ document.addEventListener('hotspotplacementchange', event => {
 });
 
 window.viewerControls?.setHotspotEditCallback(showHotspotEditor);
+window.viewerControls?.setHotspotPositionSaveCallback(saveHotspotPosition);
 window.hotspotAdmin = {
   setAdminMode: setHotspotAdminEnabled,
   setCurrentItem,

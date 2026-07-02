@@ -5,20 +5,29 @@ let panoramaViewer = null;
 let currentScene = null;
 let currentView = null;
 let currentItem = null;
+let currentVideoViewer = null;
+let currentTinyPlanet = null;
+let currentProjectionMode = 'normal';
 let autorotateTimer = null;
+let viewerMessageTimer = null;
 let currentHotspotContainer = null;
 let currentHotspots = [];
 let sceneGeneration = 0;
 let panoramaNavigationCallback = null;
 let hotspotEditCallback = null;
+let hotspotPositionSaveCallback = null;
 let hotspotAdminMode = false;
 let hotspotPlacementCallback = null;
+let hotspotDrag = null;
+
+const HOTSPOT_DRAG_THRESHOLD = 5;
 
 const DEFAULT_VIEW = {
   yaw: 0,
   pitch: 0,
   fov: Math.PI / 2
 };
+let currentStartView = { ...DEFAULT_VIEW };
 
 const MIN_FOV = 25 * Math.PI / 180;   // stark hineinzoomen
 const MAX_FOV = 165 * Math.PI / 180;  // weit herauszoomen
@@ -28,9 +37,30 @@ function viewerElement() {
   return document.getElementById('viewer');
 }
 
+function startViewForItem(item) {
+  const startView = {
+    yaw: item?.start_yaw,
+    pitch: item?.start_pitch,
+    fov: item?.start_fov
+  };
+  return Object.values(startView).every(Number.isFinite)
+    ? startView
+    : { ...DEFAULT_VIEW };
+}
+
 function setZoomLabel() {
   const label = document.getElementById('zoomLabel');
   if (!label) return;
+
+  if (currentTinyPlanet) {
+    label.textContent = currentTinyPlanet.getZoomPercent() + '%';
+    return;
+  }
+
+  if (currentVideoViewer) {
+    label.textContent = currentVideoViewer.getZoomPercent() + '%';
+    return;
+  }
 
   if (!currentView) {
     label.textContent = '0%';
@@ -42,6 +72,53 @@ function setZoomLabel() {
   label.textContent = Math.max(0, Math.min(100, percent)) + '%';
 }
 
+function updateViewerModeUi() {
+  const isPhoto = currentItem?.type === 'photo';
+  const isStereographic = !!currentTinyPlanet;
+  const modeControls = document.getElementById('projectionModeControls');
+  const label = document.getElementById('viewModeLabel');
+  const stage = viewerElement()?.closest('.stage');
+  const modeButtons = {
+    normalModeBtn: 'normal',
+    tinyPlanetBtn: 'tiny-planet',
+    rabbitHoleBtn: 'rabbit-hole'
+  };
+
+  if (modeControls) {
+    modeControls.hidden = !isPhoto;
+  }
+  Object.entries(modeButtons).forEach(([id, mode]) => {
+    const button = document.getElementById(id);
+    const active = isPhoto && currentProjectionMode === mode;
+    button?.classList.toggle('active', active);
+    button?.setAttribute('aria-pressed', String(active));
+  });
+  if (label) {
+    label.textContent = currentProjectionMode === 'tiny-planet'
+      ? 'Modus: Tiny Planet'
+      : currentProjectionMode === 'rabbit-hole'
+        ? 'Modus: Rabbit Hole'
+      : currentVideoViewer
+        ? 'Modus: 360°-Video'
+        : isPhoto
+          ? 'Modus: Panorama'
+          : 'Kein Medium';
+  }
+  document.getElementById('cinematicBtn')?.toggleAttribute('disabled', isStereographic);
+  stage?.classList.toggle('stereographic-mode', isStereographic);
+}
+
+function showViewerMessage(message) {
+  const element = document.getElementById('viewerMessage');
+  if (!element) return;
+  clearTimeout(viewerMessageTimer);
+  element.textContent = message;
+  element.classList.remove('hidden');
+  viewerMessageTimer = setTimeout(() => {
+    element.classList.add('hidden');
+  }, 7000);
+}
+
 function stopAutorotate() {
   if (autorotateTimer) {
     clearInterval(autorotateTimer);
@@ -51,6 +128,7 @@ function stopAutorotate() {
 }
 
 function clearCurrentHotspots() {
+  cancelHotspotDrag();
   if (currentHotspotContainer) {
     currentHotspots.forEach(hotspot => {
       try {
@@ -77,12 +155,144 @@ function cancelHotspotPlacement() {
   setHotspotPlacementState(false);
 }
 
+function hotspotCoordinatesAt(clientX, clientY) {
+  const el = viewerElement();
+  if (!el || !currentView) return null;
+  const bounds = el.getBoundingClientRect();
+  return currentView.screenToCoordinates({
+    x: clientX - bounds.left,
+    y: clientY - bounds.top
+  });
+}
+
+function finishHotspotDrag() {
+  if (!hotspotDrag) return null;
+  const drag = hotspotDrag;
+  hotspotDrag = null;
+  drag.marker.classList.remove('hotspot-marker--dragging');
+  try {
+    if (drag.marker.hasPointerCapture?.(drag.pointerId)) {
+      drag.marker.releasePointerCapture(drag.pointerId);
+    }
+  } catch (error) {
+    console.warn('Hotspot pointer cleanup warning:', error);
+  }
+  return drag;
+}
+
+function cancelHotspotDrag() {
+  const drag = finishHotspotDrag();
+  if (!drag) return;
+  if (drag.moved) {
+    drag.instance.setPosition(drag.originalPosition);
+    drag.marker.dataset.suppressClick = 'true';
+  }
+}
+
+function bindHotspotDragging(marker, hotspot, instance) {
+  marker.addEventListener('pointerdown', event => {
+    if (
+      !hotspotAdminMode ||
+      hotspotPlacementCallback ||
+      hotspotDrag ||
+      marker.classList.contains('hotspot-marker--saving') ||
+      event.button !== 0 ||
+      !event.isPrimary
+    ) {
+      return;
+    }
+
+    stopAutorotate();
+    hotspotDrag = {
+      pointerId: event.pointerId,
+      marker,
+      hotspot,
+      instance,
+      startX: event.clientX,
+      startY: event.clientY,
+      originalPosition: { yaw: hotspot.yaw, pitch: hotspot.pitch },
+      position: { yaw: hotspot.yaw, pitch: hotspot.pitch },
+      moved: false
+    };
+    marker.setPointerCapture?.(event.pointerId);
+  });
+}
+
+function moveHotspotDrag(event) {
+  const drag = hotspotDrag;
+  if (!drag || event.pointerId !== drag.pointerId) return;
+
+  if (!drag.moved) {
+    const distance = Math.hypot(
+      event.clientX - drag.startX,
+      event.clientY - drag.startY
+    );
+    if (distance < HOTSPOT_DRAG_THRESHOLD) return;
+    drag.moved = true;
+    drag.marker.classList.add('hotspot-marker--dragging');
+  }
+
+  const position = hotspotCoordinatesAt(event.clientX, event.clientY);
+  if (!position) return;
+  event.preventDefault();
+  event.stopPropagation();
+  drag.position = position;
+  drag.instance.setPosition(position);
+}
+
+async function saveHotspotDrag(event) {
+  const drag = hotspotDrag;
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  const completedDrag = finishHotspotDrag();
+  if (!completedDrag?.moved) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  completedDrag.marker.dataset.suppressClick = 'true';
+  completedDrag.marker.classList.add('hotspot-marker--saving');
+
+  try {
+    if (typeof hotspotPositionSaveCallback !== 'function') {
+      throw new Error('Die Hotspot-Position kann derzeit nicht gespeichert werden.');
+    }
+    const updated = await hotspotPositionSaveCallback(
+      completedDrag.hotspot,
+      completedDrag.position
+    );
+    completedDrag.hotspot.yaw = updated?.yaw ?? completedDrag.position.yaw;
+    completedDrag.hotspot.pitch = updated?.pitch ?? completedDrag.position.pitch;
+  } catch (error) {
+    completedDrag.instance.setPosition(completedDrag.originalPosition);
+    console.warn('Hotspot-Position konnte nicht gespeichert werden:', error);
+  } finally {
+    completedDrag.marker.classList.remove('hotspot-marker--saving');
+  }
+}
+
 function destroyCurrentScene() {
   stopAutorotate();
   cancelHotspotPlacement();
   sceneGeneration += 1;
+  clearTimeout(viewerMessageTimer);
+  viewerMessageTimer = null;
+  document.getElementById('viewerMessage')?.classList.add('hidden');
+
+  try {
+    currentTinyPlanet?.destroy();
+  } catch (error) {
+    console.warn('Tiny-Planet cleanup warning:', error);
+  }
+  currentTinyPlanet = null;
+  currentProjectionMode = 'normal';
 
   clearCurrentHotspots();
+
+  try {
+    currentVideoViewer?.destroy();
+  } catch (error) {
+    console.warn('360°-Video cleanup warning:', error);
+  }
+  currentVideoViewer = null;
 
   // Marzipano keeps renderer/canvas state internally. For reliable image switching,
   // reset the scene AND the viewer instance, then rebuild the DOM container.
@@ -97,12 +307,14 @@ function destroyCurrentScene() {
   currentScene = null;
   currentView = null;
   currentItem = null;
+  currentStartView = { ...DEFAULT_VIEW };
   panoramaViewer = null;
 
   const el = viewerElement();
   if (el) el.replaceChildren();
 
   setZoomLabel();
+  updateViewerModeUi();
 }
 
 function openInfoDialog(title, text) {
@@ -153,6 +365,10 @@ function createHotspotElement(hotspot) {
   marker.addEventListener('click', event => {
     event.preventDefault();
     event.stopPropagation();
+    if (marker.dataset.suppressClick === 'true') {
+      delete marker.dataset.suppressClick;
+      return;
+    }
     if (hotspotAdminMode && typeof hotspotEditCallback === 'function') {
       hotspotEditCallback(hotspot);
       return;
@@ -187,6 +403,7 @@ async function loadHotspots(mediaId, scene, generation) {
           yaw: hotspot.yaw,
           pitch: hotspot.pitch
         });
+        bindHotspotDragging(element, hotspot, instance);
         currentHotspots.push(instance);
       });
   } catch (error) {
@@ -215,11 +432,13 @@ function showError(message) {
   text.textContent = message;
   emptyState.append(heading, text);
   el.replaceChildren(emptyState);
+  updateViewerModeUi();
 }
 
 function showPhoto(item) {
   destroyCurrentScene();
   currentItem = item;
+  currentStartView = startViewForItem(item);
   const generation = sceneGeneration;
 
   const el = viewerElement();
@@ -248,7 +467,7 @@ function showPhoto(item) {
     MAX_FOV
   );
 
-  currentView = new Marzipano.RectilinearView({ ...DEFAULT_VIEW }, limiter);
+  currentView = new Marzipano.RectilinearView({ ...currentStartView }, limiter);
 
   currentScene = panoramaViewer.createScene({
     source,
@@ -260,6 +479,7 @@ function showPhoto(item) {
   currentScene.switchTo({ transitionDuration: 250 });
   loadHotspots(item.id, currentScene, generation);
   setZoomLabel();
+  updateViewerModeUi();
 }
 
 function showVideo(item) {
@@ -275,14 +495,17 @@ function showVideo(item) {
     return;
   }
 
-  const video = document.createElement('video');
-  video.className = 'video-player';
-  video.src = '/' + videoPath;
-  video.controls = true;
-  video.autoplay = true;
-  video.loop = true;
-  video.playsInline = true;
-  el.replaceChildren(video);
+  if (typeof Video360Viewer === 'undefined') {
+    showError('Der lokale 360°-Video-Renderer wurde nicht geladen.');
+    return;
+  }
+
+  currentVideoViewer = new Video360Viewer(el, '/' + videoPath, {
+    fullscreenElement: el.closest('.stage') || el,
+    onViewChange: setZoomLabel
+  });
+  setZoomLabel();
+  updateViewerModeUi();
 }
 
 function loadViewer(item) {
@@ -296,7 +519,10 @@ function loadViewer(item) {
 
   if (item.type === 'photo') showPhoto(item);
   else if (item.type === 'video') showVideo(item);
-  else showError('Unbekannter Medientyp: ' + (item.type || 'leer'));
+  else {
+    destroyCurrentScene();
+    showError('Unbekannter Medientyp: ' + (item.type || 'leer'));
+  }
 }
 
 function zoomTo(fov) {
@@ -306,23 +532,145 @@ function zoomTo(fov) {
 }
 
 function zoomIn() {
+  if (currentTinyPlanet) {
+    currentTinyPlanet.zoomIn();
+    return;
+  }
+  if (currentVideoViewer) {
+    currentVideoViewer.zoomIn();
+    return;
+  }
   if (!currentView) return;
   zoomTo(currentView.fov() * ZOOM_STEP);
 }
 
 function zoomOut() {
+  if (currentTinyPlanet) {
+    currentTinyPlanet.zoomOut();
+    return;
+  }
+  if (currentVideoViewer) {
+    currentVideoViewer.zoomOut();
+    return;
+  }
   if (!currentView) return;
   zoomTo(currentView.fov() / ZOOM_STEP);
 }
 
 function resetView() {
+  if (currentTinyPlanet) {
+    currentTinyPlanet.resetView();
+    return;
+  }
+  if (currentVideoViewer) {
+    currentVideoViewer.resetView();
+    return;
+  }
   if (!currentView) return;
-  currentView.setParameters({ ...DEFAULT_VIEW });
+  currentView.setParameters({ ...currentStartView });
   setZoomLabel();
 }
 
+function enterProjectionMode(projectionMode) {
+  if (!['tiny-planet', 'rabbit-hole'].includes(projectionMode)) {
+    return false;
+  }
+  if (currentTinyPlanet) {
+    currentProjectionMode = projectionMode;
+    currentTinyPlanet.setProjectionMode(projectionMode);
+    setZoomLabel();
+    updateViewerModeUi();
+    return true;
+  }
+  if (currentItem?.type !== 'photo' || !currentView) {
+    return false;
+  }
+  if (typeof TinyPlanetRenderer === 'undefined') {
+    showViewerMessage('Der lokale stereografische Renderer wurde nicht geladen.');
+    return false;
+  }
+
+  const imagePath = currentItem.file_path || currentItem.file;
+  if (!imagePath) {
+    showViewerMessage('Dieses Foto hat keinen Dateipfad für die Projektion.');
+    return false;
+  }
+
+  stopAutorotate();
+  cancelHotspotPlacement();
+  cancelHotspotDrag();
+
+  const renderer = new TinyPlanetRenderer(viewerElement(), '/' + imagePath, {
+    yaw: currentView.yaw(),
+    projectionMode,
+    onViewChange: setZoomLabel,
+    onError: message => {
+      if (currentTinyPlanet !== renderer) return;
+      exitProjectionMode();
+      showViewerMessage(`${message} Die Normalansicht wurde wiederhergestellt.`);
+    }
+  });
+  currentTinyPlanet = renderer;
+  currentProjectionMode = projectionMode;
+  setZoomLabel();
+  updateViewerModeUi();
+  return true;
+}
+
+function exitProjectionMode() {
+  if (currentTinyPlanet) {
+    currentTinyPlanet.destroy();
+    currentTinyPlanet = null;
+  }
+  const changed = currentProjectionMode !== 'normal';
+  currentProjectionMode = 'normal';
+  setZoomLabel();
+  updateViewerModeUi();
+  return changed;
+}
+
+function setProjectionMode(projectionMode) {
+  return projectionMode === 'normal'
+    ? exitProjectionMode()
+    : enterProjectionMode(projectionMode);
+}
+
+function toggleTinyPlanet() {
+  return currentProjectionMode === 'tiny-planet'
+    ? exitProjectionMode()
+    : enterProjectionMode('tiny-planet');
+}
+
+function toggleRabbitHole() {
+  return currentProjectionMode === 'rabbit-hole'
+    ? exitProjectionMode()
+    : enterProjectionMode('rabbit-hole');
+}
+
+function getViewParameters() {
+  if (!currentView || currentItem?.type !== 'photo') return null;
+  return {
+    yaw: currentView.yaw(),
+    pitch: currentView.pitch(),
+    fov: currentView.fov()
+  };
+}
+
+function setCurrentStartView(item) {
+  if (
+    !currentItem ||
+    currentItem.type !== 'photo' ||
+    String(currentItem.id) !== String(item?.id)
+  ) {
+    return false;
+  }
+  Object.assign(currentItem, item);
+  currentStartView = startViewForItem(currentItem);
+  return true;
+}
+
 function toggleCinematic() {
-  if (!currentView) return;
+  if (!currentView || currentTinyPlanet) return;
 
   if (autorotateTimer) {
     stopAutorotate();
@@ -340,6 +688,10 @@ function toggleCinematic() {
 }
 
 function toggleFullscreen() {
+  if (currentVideoViewer) {
+    currentVideoViewer.toggleFullscreen();
+    return;
+  }
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen?.();
   } else {
@@ -355,11 +707,18 @@ function setHotspotEditCallback(callback) {
   hotspotEditCallback = typeof callback === 'function' ? callback : null;
 }
 
+function setHotspotPositionSaveCallback(callback) {
+  hotspotPositionSaveCallback = typeof callback === 'function' ? callback : null;
+}
+
 function setHotspotAdminMode(enabled) {
   const nextValue = !!enabled;
   if (hotspotAdminMode === nextValue) return;
   hotspotAdminMode = nextValue;
-  if (!hotspotAdminMode) cancelHotspotPlacement();
+  if (!hotspotAdminMode) {
+    cancelHotspotPlacement();
+    cancelHotspotDrag();
+  }
   reloadCurrentHotspots();
 }
 
@@ -367,6 +726,7 @@ function beginHotspotPlacement(callback) {
   if (
     !hotspotAdminMode ||
     !currentView ||
+    currentTinyPlanet ||
     !currentItem ||
     currentItem.type !== 'photo' ||
     typeof callback !== 'function'
@@ -384,12 +744,18 @@ window.viewerControls = {
   zoomIn,
   zoomOut,
   resetView,
+  getViewParameters,
+  setCurrentStartView,
   toggleCinematic,
   toggleFullscreen,
+  setProjectionMode,
+  toggleTinyPlanet,
+  toggleRabbitHole,
   openInfoDialog,
   closeInfoDialog,
   setPanoramaNavigationCallback,
   setHotspotEditCallback,
+  setHotspotPositionSaveCallback,
   setHotspotAdminMode,
   beginHotspotPlacement,
   cancelHotspotPlacement,
@@ -399,6 +765,9 @@ window.viewerControls = {
 window.loadViewer = loadViewer;
 
 document.getElementById('closeHotspotInfoBtn')?.addEventListener('click', closeInfoDialog);
+document.addEventListener('pointermove', moveHotspotDrag);
+document.addEventListener('pointerup', saveHotspotDrag);
+document.addEventListener('pointercancel', cancelHotspotDrag);
 
 viewerElement()?.addEventListener('click', event => {
   if (!hotspotPlacementCallback || !currentView) return;
@@ -416,6 +785,12 @@ viewerElement()?.addEventListener('click', event => {
 });
 
 document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && hotspotDrag) {
+    event.preventDefault();
+    cancelHotspotDrag();
+    return;
+  }
+
   if (event.key === 'Escape' && hotspotPlacementCallback) {
     event.preventDefault();
     cancelHotspotPlacement();
@@ -430,8 +805,45 @@ document.addEventListener('keydown', (event) => {
     return;
   }
 
+  if (event.key === 'Escape' && currentProjectionMode !== 'normal') {
+    event.preventDefault();
+    exitProjectionMode();
+    return;
+  }
+
   const tag = String(document.activeElement?.tagName || '').toLowerCase();
   if (['input', 'textarea', 'select'].includes(tag)) return;
+
+  if (event.key.toLowerCase() === 't' && currentItem?.type === 'photo') {
+    event.preventDefault();
+    toggleTinyPlanet();
+    return;
+  }
+  if (event.key.toLowerCase() === 'r' && currentItem?.type === 'photo') {
+    event.preventDefault();
+    toggleRabbitHole();
+    return;
+  }
+
+  if (currentVideoViewer) {
+    if (tag === 'button') return;
+    if (event.code === 'Space') {
+      event.preventDefault();
+      currentVideoViewer.togglePlay();
+      return;
+    }
+    const directions = {
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, 1],
+      ArrowDown: [0, -1]
+    };
+    if (directions[event.key]) {
+      event.preventDefault();
+      currentVideoViewer.lookBy(...directions[event.key]);
+      return;
+    }
+  }
 
   if (event.key === '+' || event.key === '=') zoomIn();
   if (event.key === '-' || event.key === '_') zoomOut();
