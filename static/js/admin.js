@@ -30,6 +30,38 @@ function apiErrorMessage(data, fallback) {
   return typeof message === 'string' && message.trim() ? message : fallback;
 }
 
+function setHotspotPositionStatus(message) {
+  const statusBox = document.getElementById('statusBox');
+  if (statusBox) statusBox.textContent = `Status: ${message}`;
+}
+
+async function saveHotspotPosition(hotspot, position) {
+  try {
+    const response = await fetch(`/api/hotspots/${hotspot.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        yaw: position.yaw,
+        pitch: position.pitch
+      })
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(apiErrorMessage(
+        data,
+        `Position konnte nicht gespeichert werden (HTTP ${response.status}).`
+      ));
+    }
+    setHotspotPositionStatus('Hotspot-Position gespeichert.');
+    return data?.item;
+  } catch (error) {
+    setHotspotPositionStatus(
+      `Fehler beim Speichern der Hotspot-Position: ${error.message || 'Unbekannter Fehler.'}`
+    );
+    throw error;
+  }
+}
+
 function updateHotspotTargetState() {
   const isPanorama = hotspotType.value === 'panorama';
   hotspotTarget.disabled = !isPanorama;
@@ -244,6 +276,7 @@ document.addEventListener('hotspotplacementchange', event => {
 });
 
 window.viewerControls?.setHotspotEditCallback(showHotspotEditor);
+window.viewerControls?.setHotspotPositionSaveCallback(saveHotspotPosition);
 window.hotspotAdmin = {
   setAdminMode: setHotspotAdminEnabled,
   setCurrentItem,
