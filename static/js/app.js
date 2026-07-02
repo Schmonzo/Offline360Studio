@@ -26,6 +26,11 @@ async function loadMedia() {
   const res = await fetch('/api/media');
   const data = await res.json();
   mediaItems = data.items || [];
+  window.hotspotAdmin?.setMediaItems(mediaItems);
+  if (selectedItem) {
+    selectedItem = mediaItems.find(item => item.id === selectedItem.id) || null;
+    window.hotspotAdmin?.setCurrentItem(selectedItem);
+  }
   stats = data.stats || null;
   updateStats();
   updateFilters();
@@ -110,6 +115,7 @@ function renderGallery() {
 
 function selectItem(item) {
   selectedItem = item;
+  window.hotspotAdmin?.setCurrentItem(item);
   fillForm(item);
   renderGallery();
   loadViewer(item);
@@ -182,8 +188,13 @@ async function uploadFiles(files) {
 }
 
 document.getElementById('rescanBtn').onclick = rescan;
-document.getElementById('adminToggleBtn').onclick = () => adminPanel.classList.toggle('hidden');
-document.getElementById('closeAdminBtn').onclick = () => adminPanel.classList.add('hidden');
+function setAdminMode(enabled) {
+  adminPanel.classList.toggle('hidden', !enabled);
+  window.hotspotAdmin?.setAdminMode(enabled);
+}
+
+document.getElementById('adminToggleBtn').onclick = () => setAdminMode(adminPanel.classList.contains('hidden'));
+document.getElementById('closeAdminBtn').onclick = () => setAdminMode(false);
 document.getElementById('fullscreenBtn').onclick = () => window.viewerControls?.toggleFullscreen();
 document.getElementById('zoomInBtn').onclick = () => window.viewerControls?.zoomIn();
 document.getElementById('zoomOutBtn').onclick = () => window.viewerControls?.zoomOut();
