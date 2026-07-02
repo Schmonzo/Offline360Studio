@@ -62,6 +62,18 @@ class TinyPlanetAssetTests(unittest.TestCase):
         self.assertIn("this.texture?.dispose()", source)
         self.assertIn("this.renderer?.forceContextLoss()", source)
 
+    def test_projection_names_map_to_the_correct_shader_constants(self) -> None:
+        source = (self.static_root / "js" / "tinyplanet.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("[PROJECTION_MODES.TINY_PLANET]: 1", source)
+        self.assertIn("[PROJECTION_MODES.RABBIT_HOLE]: 0", source)
+        self.assertEqual(
+            source.count("PROJECTION_UNIFORM_VALUES[this.projectionMode]"),
+            2,
+        )
+
     def test_viewer_contains_tiny_planet_and_rabbit_hole_keyboard_bindings(self) -> None:
         source = (self.static_root / "js" / "viewer.js").read_text(
             encoding="utf-8"

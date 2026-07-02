@@ -8,6 +8,10 @@
     TINY_PLANET: 'tiny-planet',
     RABBIT_HOLE: 'rabbit-hole'
   });
+  const PROJECTION_UNIFORM_VALUES = Object.freeze({
+    [PROJECTION_MODES.TINY_PLANET]: 1,
+    [PROJECTION_MODES.RABBIT_HOLE]: 0
+  });
   const MIN_ZOOM = 0.35;
   const MAX_ZOOM = 2.2;
   const DEFAULT_VIEWS = Object.freeze({
@@ -170,7 +174,7 @@
           yaw: { value: this.yaw },
           tilt: { value: this.tilt },
           projectionMode: {
-            value: this.projectionMode === PROJECTION_MODES.RABBIT_HOLE ? 1 : 0
+            value: PROJECTION_UNIFORM_VALUES[this.projectionMode]
           }
         },
         vertexShader: [
@@ -332,7 +336,7 @@
       this.material.uniforms.tilt.value = this.tilt;
       this.material.uniforms.zoom.value = this.zoom;
       this.material.uniforms.projectionMode.value =
-        this.projectionMode === PROJECTION_MODES.RABBIT_HOLE ? 1 : 0;
+        PROJECTION_UNIFORM_VALUES[this.projectionMode];
       this.onViewChange?.();
     }
 
