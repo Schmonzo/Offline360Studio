@@ -23,6 +23,7 @@ const DEFAULT_VIEW = {
   pitch: 0,
   fov: Math.PI / 2
 };
+let currentStartView = { ...DEFAULT_VIEW };
 
 const MIN_FOV = 25 * Math.PI / 180;   // stark hineinzoomen
 const MAX_FOV = 165 * Math.PI / 180;  // weit herauszoomen
@@ -30,6 +31,17 @@ const ZOOM_STEP = 0.82;
 
 function viewerElement() {
   return document.getElementById('viewer');
+}
+
+function startViewForItem(item) {
+  const startView = {
+    yaw: item?.start_yaw,
+    pitch: item?.start_pitch,
+    fov: item?.start_fov
+  };
+  return Object.values(startView).every(Number.isFinite)
+    ? startView
+    : { ...DEFAULT_VIEW };
 }
 
 function setZoomLabel() {
@@ -216,6 +228,7 @@ function destroyCurrentScene() {
   currentScene = null;
   currentView = null;
   currentItem = null;
+  currentStartView = { ...DEFAULT_VIEW };
   panoramaViewer = null;
 
   const el = viewerElement();
@@ -344,6 +357,7 @@ function showError(message) {
 function showPhoto(item) {
   destroyCurrentScene();
   currentItem = item;
+  currentStartView = startViewForItem(item);
   const generation = sceneGeneration;
 
   const el = viewerElement();
@@ -372,7 +386,7 @@ function showPhoto(item) {
     MAX_FOV
   );
 
-  currentView = new Marzipano.RectilinearView({ ...DEFAULT_VIEW }, limiter);
+  currentView = new Marzipano.RectilinearView({ ...currentStartView }, limiter);
 
   currentScene = panoramaViewer.createScene({
     source,
@@ -441,8 +455,30 @@ function zoomOut() {
 
 function resetView() {
   if (!currentView) return;
-  currentView.setParameters({ ...DEFAULT_VIEW });
+  currentView.setParameters({ ...currentStartView });
   setZoomLabel();
+}
+
+function getViewParameters() {
+  if (!currentView || currentItem?.type !== 'photo') return null;
+  return {
+    yaw: currentView.yaw(),
+    pitch: currentView.pitch(),
+    fov: currentView.fov()
+  };
+}
+
+function setCurrentStartView(item) {
+  if (
+    !currentItem ||
+    currentItem.type !== 'photo' ||
+    String(currentItem.id) !== String(item?.id)
+  ) {
+    return false;
+  }
+  Object.assign(currentItem, item);
+  currentStartView = startViewForItem(currentItem);
+  return true;
 }
 
 function toggleCinematic() {
@@ -515,6 +551,8 @@ window.viewerControls = {
   zoomIn,
   zoomOut,
   resetView,
+  getViewParameters,
+  setCurrentStartView,
   toggleCinematic,
   toggleFullscreen,
   openInfoDialog,
