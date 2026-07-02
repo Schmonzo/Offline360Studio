@@ -11,8 +11,12 @@ let currentHotspots = [];
 let sceneGeneration = 0;
 let panoramaNavigationCallback = null;
 let hotspotEditCallback = null;
+let hotspotPositionSaveCallback = null;
 let hotspotAdminMode = false;
 let hotspotPlacementCallback = null;
+let hotspotDrag = null;
+
+const HOTSPOT_DRAG_THRESHOLD = 5;
 
 const DEFAULT_VIEW = {
   yaw: 0,
@@ -51,6 +55,7 @@ function stopAutorotate() {
 }
 
 function clearCurrentHotspots() {
+  cancelHotspotDrag();
   if (currentHotspotContainer) {
     currentHotspots.forEach(hotspot => {
       try {
@@ -75,6 +80,120 @@ function cancelHotspotPlacement() {
   if (!hotspotPlacementCallback) return;
   hotspotPlacementCallback = null;
   setHotspotPlacementState(false);
+}
+
+function hotspotCoordinatesAt(clientX, clientY) {
+  const el = viewerElement();
+  if (!el || !currentView) return null;
+  const bounds = el.getBoundingClientRect();
+  return currentView.screenToCoordinates({
+    x: clientX - bounds.left,
+    y: clientY - bounds.top
+  });
+}
+
+function finishHotspotDrag() {
+  if (!hotspotDrag) return null;
+  const drag = hotspotDrag;
+  hotspotDrag = null;
+  drag.marker.classList.remove('hotspot-marker--dragging');
+  try {
+    if (drag.marker.hasPointerCapture?.(drag.pointerId)) {
+      drag.marker.releasePointerCapture(drag.pointerId);
+    }
+  } catch (error) {
+    console.warn('Hotspot pointer cleanup warning:', error);
+  }
+  return drag;
+}
+
+function cancelHotspotDrag() {
+  const drag = finishHotspotDrag();
+  if (!drag) return;
+  if (drag.moved) {
+    drag.instance.setPosition(drag.originalPosition);
+    drag.marker.dataset.suppressClick = 'true';
+  }
+}
+
+function bindHotspotDragging(marker, hotspot, instance) {
+  marker.addEventListener('pointerdown', event => {
+    if (
+      !hotspotAdminMode ||
+      hotspotPlacementCallback ||
+      hotspotDrag ||
+      marker.classList.contains('hotspot-marker--saving') ||
+      event.button !== 0 ||
+      !event.isPrimary
+    ) {
+      return;
+    }
+
+    stopAutorotate();
+    hotspotDrag = {
+      pointerId: event.pointerId,
+      marker,
+      hotspot,
+      instance,
+      startX: event.clientX,
+      startY: event.clientY,
+      originalPosition: { yaw: hotspot.yaw, pitch: hotspot.pitch },
+      position: { yaw: hotspot.yaw, pitch: hotspot.pitch },
+      moved: false
+    };
+    marker.setPointerCapture?.(event.pointerId);
+  });
+}
+
+function moveHotspotDrag(event) {
+  const drag = hotspotDrag;
+  if (!drag || event.pointerId !== drag.pointerId) return;
+
+  if (!drag.moved) {
+    const distance = Math.hypot(
+      event.clientX - drag.startX,
+      event.clientY - drag.startY
+    );
+    if (distance < HOTSPOT_DRAG_THRESHOLD) return;
+    drag.moved = true;
+    drag.marker.classList.add('hotspot-marker--dragging');
+  }
+
+  const position = hotspotCoordinatesAt(event.clientX, event.clientY);
+  if (!position) return;
+  event.preventDefault();
+  event.stopPropagation();
+  drag.position = position;
+  drag.instance.setPosition(position);
+}
+
+async function saveHotspotDrag(event) {
+  const drag = hotspotDrag;
+  if (!drag || event.pointerId !== drag.pointerId) return;
+  const completedDrag = finishHotspotDrag();
+  if (!completedDrag?.moved) return;
+
+  event.preventDefault();
+  event.stopPropagation();
+  completedDrag.marker.dataset.suppressClick = 'true';
+  completedDrag.marker.classList.add('hotspot-marker--saving');
+
+  try {
+    if (typeof hotspotPositionSaveCallback !== 'function') {
+      throw new Error('Die Hotspot-Position kann derzeit nicht gespeichert werden.');
+    }
+    const updated = await hotspotPositionSaveCallback(
+      completedDrag.hotspot,
+      completedDrag.position
+    );
+    completedDrag.hotspot.yaw = updated?.yaw ?? completedDrag.position.yaw;
+    completedDrag.hotspot.pitch = updated?.pitch ?? completedDrag.position.pitch;
+  } catch (error) {
+    completedDrag.instance.setPosition(completedDrag.originalPosition);
+    console.warn('Hotspot-Position konnte nicht gespeichert werden:', error);
+  } finally {
+    completedDrag.marker.classList.remove('hotspot-marker--saving');
+  }
 }
 
 function destroyCurrentScene() {
@@ -153,6 +272,10 @@ function createHotspotElement(hotspot) {
   marker.addEventListener('click', event => {
     event.preventDefault();
     event.stopPropagation();
+    if (marker.dataset.suppressClick === 'true') {
+      delete marker.dataset.suppressClick;
+      return;
+    }
     if (hotspotAdminMode && typeof hotspotEditCallback === 'function') {
       hotspotEditCallback(hotspot);
       return;
@@ -187,6 +310,7 @@ async function loadHotspots(mediaId, scene, generation) {
           yaw: hotspot.yaw,
           pitch: hotspot.pitch
         });
+        bindHotspotDragging(element, hotspot, instance);
         currentHotspots.push(instance);
       });
   } catch (error) {
@@ -355,11 +479,18 @@ function setHotspotEditCallback(callback) {
   hotspotEditCallback = typeof callback === 'function' ? callback : null;
 }
 
+function setHotspotPositionSaveCallback(callback) {
+  hotspotPositionSaveCallback = typeof callback === 'function' ? callback : null;
+}
+
 function setHotspotAdminMode(enabled) {
   const nextValue = !!enabled;
   if (hotspotAdminMode === nextValue) return;
   hotspotAdminMode = nextValue;
-  if (!hotspotAdminMode) cancelHotspotPlacement();
+  if (!hotspotAdminMode) {
+    cancelHotspotPlacement();
+    cancelHotspotDrag();
+  }
   reloadCurrentHotspots();
 }
 
@@ -390,6 +521,7 @@ window.viewerControls = {
   closeInfoDialog,
   setPanoramaNavigationCallback,
   setHotspotEditCallback,
+  setHotspotPositionSaveCallback,
   setHotspotAdminMode,
   beginHotspotPlacement,
   cancelHotspotPlacement,
@@ -399,6 +531,9 @@ window.viewerControls = {
 window.loadViewer = loadViewer;
 
 document.getElementById('closeHotspotInfoBtn')?.addEventListener('click', closeInfoDialog);
+document.addEventListener('pointermove', moveHotspotDrag);
+document.addEventListener('pointerup', saveHotspotDrag);
+document.addEventListener('pointercancel', cancelHotspotDrag);
 
 viewerElement()?.addEventListener('click', event => {
   if (!hotspotPlacementCallback || !currentView) return;
@@ -416,6 +551,12 @@ viewerElement()?.addEventListener('click', event => {
 });
 
 document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && hotspotDrag) {
+    event.preventDefault();
+    cancelHotspotDrag();
+    return;
+  }
+
   if (event.key === 'Escape' && hotspotPlacementCallback) {
     event.preventDefault();
     cancelHotspotPlacement();

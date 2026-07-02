@@ -78,6 +78,9 @@ code { color: #ffd3b5; }
 .hotspot-marker__icon { display:grid; place-items:center; flex:0 0 28px; width:28px; height:28px; border-radius:50%; color:#111; font-size:17px; font-weight:900; background:var(--accent); }
 .hotspot-marker--info .hotspot-marker__icon { color:#fff; background:#287fd1; font-family:Georgia, serif; }
 .hotspot-marker--hidden { opacity:.52; border-style:dashed; }
+.hotspot-marker--dragging { z-index:2; border-color:var(--accent); background:rgba(50,27,10,.96); box-shadow:0 0 0 5px rgba(255,122,24,.3), 0 10px 30px rgba(0,0,0,.6); cursor:grabbing; transform:translate(-50%, -50%) scale(1.1); }
+.hotspot-marker--dragging:hover { transform:translate(-50%, -50%) scale(1.1); }
+.hotspot-marker--saving { cursor:wait; }
 .hotspot-marker__label { overflow:hidden; text-overflow:ellipsis; font-size:13px; }
 .viewer.hotspot-placement-active { cursor:crosshair; }
 .hotspot-dialog { width:min(520px, calc(100vw - 32px)); max-height:calc(100vh - 32px); padding:0; border:1px solid var(--line); border-radius:20px; color:var(--text); background:var(--panel); box-shadow:0 24px 80px rgba(0,0,0,.65); }
