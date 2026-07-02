@@ -45,12 +45,13 @@ button:disabled, select:disabled, input:disabled, textarea:disabled { cursor:not
 .no-results { color:var(--muted); border:1px dashed var(--line); border-radius:16px; padding:18px; text-align:center; }
 .stage { position:relative; min-width:0; }
 .viewer { width:100%; height:100vh; background:#050608; }
-.tinyplanet { position:absolute; z-index:1; inset:0; overflow:hidden; background:#050608; outline:none; touch-action:none; cursor:grab; }
+.tinyplanet { position:absolute; z-index:1; inset:0; overflow:hidden; background:transparent; outline:none; touch-action:none; cursor:grab; }
+.tinyplanet--ready { background:#050608; }
 .tinyplanet--dragging { cursor:grabbing; }
 .tinyplanet__canvas-host, .tinyplanet__canvas { display:block; width:100%; height:100%; }
 .tinyplanet__status { position:absolute; left:50%; top:50%; max-width:min(520px, calc(100% - 40px)); padding:12px 16px; border:1px solid var(--line); border-radius:12px; color:var(--text); background:rgba(10,10,12,.82); text-align:center; transform:translate(-50%, -50%); pointer-events:none; }
 .tinyplanet__status--error { border-color:#d95454; color:#ffd3d3; background:rgba(70,16,16,.92); }
-.tiny-planet-mode .hotspot-marker { visibility:hidden; }
+.stereographic-mode .hotspot-marker { visibility:hidden; }
 .empty-state { height:100%; display:grid; place-content:center; text-align:center; padding:40px; }
 .empty-state h2 { margin:0 0 8px; font-size:42px; }
 code { color: #ffd3b5; }
@@ -88,7 +89,10 @@ code { color: #ffd3b5; }
 .stage.video-mode #cinematicBtn { display:none; }
 .viewer-controls { position: absolute; z-index:3; right: 22px; bottom: 22px; display: grid; grid-template-columns: 48px 64px 48px; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 18px; background: rgba(10, 10, 12, .58); backdrop-filter: blur(10px); box-shadow: 0 18px 45px rgba(0,0,0,.35); }
 .viewer-controls button { min-width: 48px; padding: 10px; }
-.viewer-controls #homeBtn, .viewer-controls #tinyPlanetBtn, .viewer-controls #cinematicBtn, .view-mode-label { grid-column: span 3; }
+.viewer-controls #homeBtn, .viewer-controls #cinematicBtn, .view-mode-label, .projection-mode-controls { grid-column: span 3; }
+.projection-mode-controls { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; }
+.projection-mode-controls[hidden] { display:none; }
+.projection-mode-controls button { min-width:0; padding:9px 6px; font-size:12px; }
 .viewer-controls button.active { border-color: var(--accent); background: rgba(255,122,24,.18); }
 .zoom-label { display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; color: var(--muted); font-size: 12px; font-weight: 800; background: rgba(0,0,0,.24); }
 .view-mode-label { color:var(--text); font-size:12px; font-weight:800; text-align:center; }

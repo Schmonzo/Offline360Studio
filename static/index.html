@@ -68,7 +68,11 @@
       <div id="zoomLabel" class="zoom-label">0%</div>
       <button id="zoomOutBtn" title="Herauszoomen (-)">−</button>
       <button id="homeBtn" title="Startansicht (H)">Home</button>
-      <button id="tinyPlanetBtn" type="button" title="Tiny Planet ein-/ausschalten (T)" aria-label="Tiny Planet einschalten" aria-pressed="false" hidden>Tiny Planet</button>
+      <div id="projectionModeControls" class="projection-mode-controls" role="group" aria-label="Projektionsmodus" hidden>
+        <button id="normalModeBtn" type="button" class="active" title="Normalansicht (Escape)" aria-label="Normalansicht" aria-pressed="true">Normal</button>
+        <button id="tinyPlanetBtn" type="button" title="Tiny Planet ein-/ausschalten (T)" aria-label="Tiny Planet" aria-pressed="false">Tiny Planet</button>
+        <button id="rabbitHoleBtn" type="button" title="Rabbit Hole ein-/ausschalten (R)" aria-label="Rabbit Hole" aria-pressed="false">Rabbit Hole</button>
+      </div>
       <button id="cinematicBtn" title="Cinematic Mode (C)">Auto</button>
     </div>
     <div id="viewerMessage" class="viewer-message hidden" role="alert"></div>

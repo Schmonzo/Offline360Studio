@@ -7,6 +7,7 @@ let currentView = null;
 let currentItem = null;
 let currentVideoViewer = null;
 let currentTinyPlanet = null;
+let currentProjectionMode = 'normal';
 let autorotateTimer = null;
 let viewerMessageTimer = null;
 let currentHotspotContainer = null;
@@ -73,34 +74,38 @@ function setZoomLabel() {
 
 function updateViewerModeUi() {
   const isPhoto = currentItem?.type === 'photo';
-  const isTinyPlanet = !!currentTinyPlanet;
-  const button = document.getElementById('tinyPlanetBtn');
+  const isStereographic = !!currentTinyPlanet;
+  const modeControls = document.getElementById('projectionModeControls');
   const label = document.getElementById('viewModeLabel');
   const stage = viewerElement()?.closest('.stage');
+  const modeButtons = {
+    normalModeBtn: 'normal',
+    tinyPlanetBtn: 'tiny-planet',
+    rabbitHoleBtn: 'rabbit-hole'
+  };
 
-  if (button) {
-    button.hidden = !isPhoto;
-    button.classList.toggle('active', isTinyPlanet);
-    button.setAttribute('aria-pressed', String(isTinyPlanet));
-    button.setAttribute(
-      'aria-label',
-      isTinyPlanet ? 'Tiny Planet beenden' : 'Tiny Planet einschalten'
-    );
-    button.title = isTinyPlanet
-      ? 'Zur Normalansicht wechseln (T oder Escape)'
-      : 'Tiny Planet einschalten (T)';
+  if (modeControls) {
+    modeControls.hidden = !isPhoto;
   }
+  Object.entries(modeButtons).forEach(([id, mode]) => {
+    const button = document.getElementById(id);
+    const active = isPhoto && currentProjectionMode === mode;
+    button?.classList.toggle('active', active);
+    button?.setAttribute('aria-pressed', String(active));
+  });
   if (label) {
-    label.textContent = isTinyPlanet
+    label.textContent = currentProjectionMode === 'tiny-planet'
       ? 'Modus: Tiny Planet'
+      : currentProjectionMode === 'rabbit-hole'
+        ? 'Modus: Rabbit Hole'
       : currentVideoViewer
         ? 'Modus: 360°-Video'
         : isPhoto
           ? 'Modus: Panorama'
           : 'Kein Medium';
   }
-  document.getElementById('cinematicBtn')?.toggleAttribute('disabled', isTinyPlanet);
-  stage?.classList.toggle('tiny-planet-mode', isTinyPlanet);
+  document.getElementById('cinematicBtn')?.toggleAttribute('disabled', isStereographic);
+  stage?.classList.toggle('stereographic-mode', isStereographic);
 }
 
 function showViewerMessage(message) {
@@ -278,6 +283,7 @@ function destroyCurrentScene() {
     console.warn('Tiny-Planet cleanup warning:', error);
   }
   currentTinyPlanet = null;
+  currentProjectionMode = 'normal';
 
   clearCurrentHotspots();
 
@@ -565,18 +571,28 @@ function resetView() {
   setZoomLabel();
 }
 
-function enterTinyPlanet() {
-  if (currentTinyPlanet || currentItem?.type !== 'photo' || !currentView) {
+function enterProjectionMode(projectionMode) {
+  if (!['tiny-planet', 'rabbit-hole'].includes(projectionMode)) {
+    return false;
+  }
+  if (currentTinyPlanet) {
+    currentProjectionMode = projectionMode;
+    currentTinyPlanet.setProjectionMode(projectionMode);
+    setZoomLabel();
+    updateViewerModeUi();
+    return true;
+  }
+  if (currentItem?.type !== 'photo' || !currentView) {
     return false;
   }
   if (typeof TinyPlanetRenderer === 'undefined') {
-    showViewerMessage('Der lokale Tiny-Planet-Renderer wurde nicht geladen.');
+    showViewerMessage('Der lokale stereografische Renderer wurde nicht geladen.');
     return false;
   }
 
   const imagePath = currentItem.file_path || currentItem.file;
   if (!imagePath) {
-    showViewerMessage('Dieses Foto hat keinen Dateipfad für Tiny Planet.');
+    showViewerMessage('Dieses Foto hat keinen Dateipfad für die Projektion.');
     return false;
   }
 
@@ -586,30 +602,49 @@ function enterTinyPlanet() {
 
   const renderer = new TinyPlanetRenderer(viewerElement(), '/' + imagePath, {
     yaw: currentView.yaw(),
+    projectionMode,
     onViewChange: setZoomLabel,
     onError: message => {
       if (currentTinyPlanet !== renderer) return;
-      exitTinyPlanet();
+      exitProjectionMode();
       showViewerMessage(`${message} Die Normalansicht wurde wiederhergestellt.`);
     }
   });
   currentTinyPlanet = renderer;
+  currentProjectionMode = projectionMode;
   setZoomLabel();
   updateViewerModeUi();
   return true;
 }
 
-function exitTinyPlanet() {
-  if (!currentTinyPlanet) return false;
-  currentTinyPlanet.destroy();
-  currentTinyPlanet = null;
+function exitProjectionMode() {
+  if (currentTinyPlanet) {
+    currentTinyPlanet.destroy();
+    currentTinyPlanet = null;
+  }
+  const changed = currentProjectionMode !== 'normal';
+  currentProjectionMode = 'normal';
   setZoomLabel();
   updateViewerModeUi();
-  return true;
+  return changed;
+}
+
+function setProjectionMode(projectionMode) {
+  return projectionMode === 'normal'
+    ? exitProjectionMode()
+    : enterProjectionMode(projectionMode);
 }
 
 function toggleTinyPlanet() {
-  return currentTinyPlanet ? exitTinyPlanet() : enterTinyPlanet();
+  return currentProjectionMode === 'tiny-planet'
+    ? exitProjectionMode()
+    : enterProjectionMode('tiny-planet');
+}
+
+function toggleRabbitHole() {
+  return currentProjectionMode === 'rabbit-hole'
+    ? exitProjectionMode()
+    : enterProjectionMode('rabbit-hole');
 }
 
 function getViewParameters() {
@@ -713,7 +748,9 @@ window.viewerControls = {
   setCurrentStartView,
   toggleCinematic,
   toggleFullscreen,
+  setProjectionMode,
   toggleTinyPlanet,
+  toggleRabbitHole,
   openInfoDialog,
   closeInfoDialog,
   setPanoramaNavigationCallback,
@@ -768,17 +805,23 @@ document.addEventListener('keydown', (event) => {
     return;
   }
 
+  if (event.key === 'Escape' && currentProjectionMode !== 'normal') {
+    event.preventDefault();
+    exitProjectionMode();
+    return;
+  }
+
   const tag = String(document.activeElement?.tagName || '').toLowerCase();
   if (['input', 'textarea', 'select'].includes(tag)) return;
 
-  if (event.key === 'Escape' && currentTinyPlanet) {
-    event.preventDefault();
-    exitTinyPlanet();
-    return;
-  }
   if (event.key.toLowerCase() === 't' && currentItem?.type === 'photo') {
     event.preventDefault();
     toggleTinyPlanet();
+    return;
+  }
+  if (event.key.toLowerCase() === 'r' && currentItem?.type === 'photo') {
+    event.preventDefault();
+    toggleRabbitHole();
     return;
   }
 

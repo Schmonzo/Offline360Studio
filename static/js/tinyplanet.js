@@ -1,13 +1,19 @@
-// Stereographic Tiny Planet renderer for equirectangular photos.
+// Stereographic Tiny Planet / Rabbit Hole renderer for equirectangular photos.
 // Three.js is loaded on demand from the local offline bundle.
 (function () {
   'use strict';
 
   const THREE_MODULE_URL = '/static/lib/three.module.min.js';
+  const PROJECTION_MODES = Object.freeze({
+    TINY_PLANET: 'tiny-planet',
+    RABBIT_HOLE: 'rabbit-hole'
+  });
   const MIN_ZOOM = 0.35;
   const MAX_ZOOM = 2.2;
-  const DEFAULT_ZOOM = 0.82;
-  const MAX_TILT = Math.PI * 0.22;
+  const DEFAULT_VIEWS = Object.freeze({
+    [PROJECTION_MODES.TINY_PLANET]: Object.freeze({ tilt: 0, zoom: 0.82 }),
+    [PROJECTION_MODES.RABBIT_HOLE]: Object.freeze({ tilt: 0, zoom: 0.82 })
+  });
 
   let threeModulePromise = null;
 
@@ -22,6 +28,7 @@
     constructor(container, imageUrl, options = {}) {
       this.container = container;
       this.imageUrl = imageUrl;
+      this.projectionMode = this.normalizeProjectionMode(options.projectionMode);
       this.initialYaw = Number.isFinite(options.yaw) ? options.yaw : 0;
       this.onViewChange = typeof options.onViewChange === 'function'
         ? options.onViewChange
@@ -35,12 +42,35 @@
       this.animationFrame = null;
       this.lastPinchDistance = null;
       this.yaw = this.initialYaw;
-      this.tilt = 0;
-      this.zoom = DEFAULT_ZOOM;
+      this.tilt = DEFAULT_VIEWS[this.projectionMode].tilt;
+      this.zoom = DEFAULT_VIEWS[this.projectionMode].zoom;
 
       this.buildDom();
       this.bindInteractionEvents();
       this.initialize();
+    }
+
+    normalizeProjectionMode(mode) {
+      return mode === PROJECTION_MODES.RABBIT_HOLE
+        ? PROJECTION_MODES.RABBIT_HOLE
+        : PROJECTION_MODES.TINY_PLANET;
+    }
+
+    projectionName() {
+      return this.projectionMode === PROJECTION_MODES.RABBIT_HOLE
+        ? 'Rabbit Hole'
+        : 'Tiny Planet';
+    }
+
+    updateAccessibility() {
+      const name = this.projectionName();
+      this.root?.setAttribute(
+        'aria-label',
+        `${name}-Ansicht. Ziehen zum Drehen, Mausrad oder Pinch zum Zoomen.`
+      );
+      if (this.status && !this.status.hidden) {
+        this.status.textContent = `${name} wird geladen …`;
+      }
     }
 
     buildDom() {
@@ -48,10 +78,6 @@
       this.root.className = 'tinyplanet';
       this.root.tabIndex = 0;
       this.root.setAttribute('role', 'application');
-      this.root.setAttribute(
-        'aria-label',
-        'Tiny-Planet-Ansicht. Ziehen zum Drehen, Mausrad oder Pinch zum Zoomen.'
-      );
 
       this.canvasHost = document.createElement('div');
       this.canvasHost.className = 'tinyplanet__canvas-host';
@@ -63,6 +89,7 @@
 
       this.root.append(this.canvasHost, this.status);
       this.container.append(this.root);
+      this.updateAccessibility();
     }
 
     listen(target, eventName, handler, options) {
@@ -100,6 +127,7 @@
         this.material.uniforms.panorama.value = this.texture;
         this.material.uniforms.textureReady.value = 1;
         this.status.hidden = true;
+        this.root.classList.add('tinyplanet--ready');
         this.render();
       } catch (error) {
         if (this.destroyed) return;
@@ -122,10 +150,11 @@
       this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
       this.renderer = new THREE.WebGLRenderer({
         antialias: true,
+        alpha: true,
         powerPreference: 'high-performance'
       });
       this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-      this.renderer.setClearColor(0x050608, 1);
+      this.renderer.setClearColor(0x050608, 0);
       this.renderer.domElement.className = 'tinyplanet__canvas';
       this.renderer.domElement.setAttribute('aria-hidden', 'true');
       this.canvasHost.append(this.renderer.domElement);
@@ -139,7 +168,10 @@
           aspect: { value: 1 },
           zoom: { value: this.zoom },
           yaw: { value: this.yaw },
-          tilt: { value: this.tilt }
+          tilt: { value: this.tilt },
+          projectionMode: {
+            value: this.projectionMode === PROJECTION_MODES.RABBIT_HOLE ? 1 : 0
+          }
         },
         vertexShader: [
           'varying vec2 vUv;',
@@ -156,11 +188,12 @@
           'uniform float zoom;',
           'uniform float yaw;',
           'uniform float tilt;',
+          'uniform float projectionMode;',
           'varying vec2 vUv;',
           'const float PI = 3.141592653589793;',
           'void main() {',
           '  if (textureReady < 0.5) {',
-          '    gl_FragColor = vec4(0.02, 0.024, 0.032, 1.0);',
+          '    gl_FragColor = vec4(0.0);',
           '    return;',
           '  }',
           '  vec2 plane = (vUv - 0.5) * 2.0;',
@@ -168,9 +201,10 @@
           '  plane /= zoom;',
           '  float radius2 = dot(plane, plane);',
           '  float denominator = 1.0 + radius2;',
+          '  float poleSign = mix(-1.0, 1.0, step(0.5, projectionMode));',
           '  vec3 direction = vec3(',
           '    2.0 * plane.x / denominator,',
-          '    -(1.0 - radius2) / denominator,',
+          '    poleSign * (1.0 - radius2) / denominator,',
           '    2.0 * plane.y / denominator',
           '  );',
           '  float cosTilt = cos(tilt);',
@@ -262,10 +296,7 @@
 
       if (this.pointers.size === 1) {
         this.yaw += (current.x - previous.x) * 0.006;
-        this.tilt = Math.max(
-          -MAX_TILT,
-          Math.min(MAX_TILT, this.tilt + (current.y - previous.y) * 0.003)
-        );
+        this.tilt += (current.y - previous.y) * 0.003;
         this.updateUniforms();
       } else if (this.pointers.size === 2) {
         const distance = this.pointerDistance();
@@ -300,7 +331,17 @@
       this.material.uniforms.yaw.value = this.yaw;
       this.material.uniforms.tilt.value = this.tilt;
       this.material.uniforms.zoom.value = this.zoom;
+      this.material.uniforms.projectionMode.value =
+        this.projectionMode === PROJECTION_MODES.RABBIT_HOLE ? 1 : 0;
       this.onViewChange?.();
+    }
+
+    setProjectionMode(mode) {
+      const nextMode = this.normalizeProjectionMode(mode);
+      if (nextMode === this.projectionMode) return;
+      this.projectionMode = nextMode;
+      this.updateAccessibility();
+      this.resetView();
     }
 
     setZoom(zoom) {
@@ -317,9 +358,10 @@
     }
 
     resetView() {
+      const defaultView = DEFAULT_VIEWS[this.projectionMode];
       this.yaw = this.initialYaw;
-      this.tilt = 0;
-      this.zoom = DEFAULT_ZOOM;
+      this.tilt = defaultView.tilt;
+      this.zoom = defaultView.zoom;
       this.updateUniforms();
     }
 
@@ -357,4 +399,5 @@
   }
 
   window.TinyPlanetRenderer = TinyPlanetRenderer;
+  window.STEREOGRAPHIC_PROJECTION_MODES = PROJECTION_MODES;
 })();

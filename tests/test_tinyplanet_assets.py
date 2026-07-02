@@ -22,13 +22,18 @@ class TinyPlanetAssetTests(unittest.TestCase):
         self.assertIn(viewer_integration, page)
         self.assertLess(page.index(tiny_planet), page.index(viewer_integration))
 
-    def test_page_contains_accessible_photo_only_toggle_and_mode_status(self) -> None:
+    def test_page_contains_accessible_photo_only_mode_controls_and_status(self) -> None:
         response = self.client.get("/")
         self.addCleanup(response.close)
         page = response.get_data(as_text=True)
 
+        self.assertIn('id="projectionModeControls"', page)
+        self.assertIn('aria-label="Projektionsmodus"', page)
+        self.assertIn('id="normalModeBtn"', page)
         self.assertIn('id="tinyPlanetBtn"', page)
-        self.assertIn('aria-label="Tiny Planet einschalten"', page)
+        self.assertIn('aria-label="Tiny Planet"', page)
+        self.assertIn('id="rabbitHoleBtn"', page)
+        self.assertIn('aria-label="Rabbit Hole"', page)
         self.assertIn('aria-pressed="false"', page)
         self.assertIn('id="viewModeLabel"', page)
         self.assertIn('role="status"', page)
@@ -42,16 +47,31 @@ class TinyPlanetAssetTests(unittest.TestCase):
         self.assertNotIn("https://", source)
         self.assertNotIn("http://", source)
 
-    def test_tiny_planet_contains_stereographic_projection_and_cleanup(self) -> None:
+    def test_renderer_contains_both_stereographic_projections_and_cleanup(self) -> None:
         source = (self.static_root / "js" / "tinyplanet.js").read_text(
             encoding="utf-8"
         )
 
+        self.assertIn("'tiny-planet'", source)
+        self.assertIn("'rabbit-hole'", source)
         self.assertIn("1.0 + radius2", source)
         self.assertIn("2.0 * plane.x / denominator", source)
+        self.assertIn("poleSign * (1.0 - radius2) / denominator", source)
+        self.assertIn("uniform float projectionMode", source)
         self.assertIn("cancelAnimationFrame(this.animationFrame)", source)
         self.assertIn("this.texture?.dispose()", source)
         self.assertIn("this.renderer?.forceContextLoss()", source)
+
+    def test_viewer_contains_tiny_planet_and_rabbit_hole_keyboard_bindings(self) -> None:
+        source = (self.static_root / "js" / "viewer.js").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("event.key.toLowerCase() === 't'", source)
+        self.assertIn("event.key.toLowerCase() === 'r'", source)
+        self.assertIn("event.key === 'Escape'", source)
+        self.assertIn("enterProjectionMode('tiny-planet')", source)
+        self.assertIn("enterProjectionMode('rabbit-hole')", source)
 
     def test_tiny_planet_and_three_assets_are_served(self) -> None:
         for path in (
