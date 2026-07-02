@@ -68,7 +68,18 @@ code { color: #ffd3b5; }
 .edit-form textarea { min-height:96px; resize:vertical; }
 .edit-form .check { flex-direction:row; align-items:center; }
 .status-box { white-space:pre-wrap; background:#0f1116; border:1px solid var(--line); color:#d6d8df; border-radius:12px; padding:12px; min-height:80px; }
-.video-player { width:100%; height:100%; background:#000; object-fit:contain; }
+.video360 { position:relative; width:100%; height:100%; overflow:hidden; background:#000; outline:none; touch-action:none; cursor:grab; }
+.video360--dragging { cursor:grabbing; }
+.video360__canvas-host, .video360__canvas { display:block; width:100%; height:100%; }
+.video360__source { position:absolute; width:1px; height:1px; left:-10000px; opacity:0; pointer-events:none; }
+.video360__status { position:absolute; left:50%; top:50%; max-width:min(520px, calc(100% - 40px)); padding:12px 16px; border:1px solid var(--line); border-radius:12px; color:var(--text); background:rgba(10,10,12,.82); text-align:center; transform:translate(-50%, -50%); pointer-events:none; }
+.video360__status--error { border-color:#d95454; color:#ffd3d3; background:rgba(70,16,16,.92); }
+.video360__controls { position:absolute; z-index:2; left:22px; right:22px; bottom:18px; display:grid; grid-template-columns:auto minmax(120px, 1fr) auto minmax(72px, 120px) auto; gap:10px; align-items:center; padding:10px; border:1px solid var(--line); border-radius:16px; background:rgba(10,10,12,.78); backdrop-filter:blur(10px); cursor:default; touch-action:auto; }
+.video360__controls button { padding:8px 11px; }
+.video360__controls input { accent-color:var(--accent); cursor:pointer; }
+.video360__time { min-width:92px; color:var(--muted); font-size:12px; font-variant-numeric:tabular-nums; text-align:center; }
+.stage.video-mode .viewer-controls { bottom:88px; }
+.stage.video-mode #cinematicBtn { display:none; }
 .viewer-controls { position: absolute; right: 22px; bottom: 22px; display: grid; grid-template-columns: 48px 64px 48px; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 18px; background: rgba(10, 10, 12, .58); backdrop-filter: blur(10px); box-shadow: 0 18px 45px rgba(0,0,0,.35); }
 .viewer-controls button { min-width: 48px; padding: 10px; }
 .viewer-controls #homeBtn, .viewer-controls #cinematicBtn { grid-column: span 3; }
@@ -105,4 +116,4 @@ code { color: #ffd3b5; }
 .hotspot-editor-actions { display:grid; grid-template-columns:auto 1fr auto auto; gap:10px; align-items:center; margin-top:4px; }
 button.danger { border-color:#d95454; color:#ffd3d3; }
 @media (max-width: 980px) { body { grid-template-columns: 1fr; } .sidebar { position:absolute; z-index:5; width:360px; max-width:92vw; height:100vh; } }
-@media (max-width: 600px) { .hotspot-marker { max-width:180px; } .hotspot-marker__label { max-width:110px; } .hotspot-dialog__content { padding:20px; } .hotspot-dialog__actions button { width:100%; } }
+@media (max-width: 600px) { .video360__controls { left:8px; right:8px; bottom:8px; grid-template-columns:auto 1fr auto; } .video360__time { min-width:0; } .video360__volume, .video360__controls button:last-child { display:none; } .stage.video-mode .viewer-controls { bottom:74px; right:8px; } .hotspot-marker { max-width:180px; } .hotspot-marker__label { max-width:110px; } .hotspot-dialog__content { padding:20px; } .hotspot-dialog__actions button { width:100%; } }

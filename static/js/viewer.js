@@ -5,6 +5,7 @@ let panoramaViewer = null;
 let currentScene = null;
 let currentView = null;
 let currentItem = null;
+let currentVideoViewer = null;
 let autorotateTimer = null;
 let currentHotspotContainer = null;
 let currentHotspots = [];
@@ -47,6 +48,11 @@ function startViewForItem(item) {
 function setZoomLabel() {
   const label = document.getElementById('zoomLabel');
   if (!label) return;
+
+  if (currentVideoViewer) {
+    label.textContent = currentVideoViewer.getZoomPercent() + '%';
+    return;
+  }
 
   if (!currentView) {
     label.textContent = '0%';
@@ -214,6 +220,13 @@ function destroyCurrentScene() {
   sceneGeneration += 1;
 
   clearCurrentHotspots();
+
+  try {
+    currentVideoViewer?.destroy();
+  } catch (error) {
+    console.warn('360°-Video cleanup warning:', error);
+  }
+  currentVideoViewer = null;
 
   // Marzipano keeps renderer/canvas state internally. For reliable image switching,
   // reset the scene AND the viewer instance, then rebuild the DOM container.
@@ -413,14 +426,16 @@ function showVideo(item) {
     return;
   }
 
-  const video = document.createElement('video');
-  video.className = 'video-player';
-  video.src = '/' + videoPath;
-  video.controls = true;
-  video.autoplay = true;
-  video.loop = true;
-  video.playsInline = true;
-  el.replaceChildren(video);
+  if (typeof Video360Viewer === 'undefined') {
+    showError('Der lokale 360°-Video-Renderer wurde nicht geladen.');
+    return;
+  }
+
+  currentVideoViewer = new Video360Viewer(el, '/' + videoPath, {
+    fullscreenElement: el.closest('.stage') || el,
+    onViewChange: setZoomLabel
+  });
+  setZoomLabel();
 }
 
 function loadViewer(item) {
@@ -434,7 +449,10 @@ function loadViewer(item) {
 
   if (item.type === 'photo') showPhoto(item);
   else if (item.type === 'video') showVideo(item);
-  else showError('Unbekannter Medientyp: ' + (item.type || 'leer'));
+  else {
+    destroyCurrentScene();
+    showError('Unbekannter Medientyp: ' + (item.type || 'leer'));
+  }
 }
 
 function zoomTo(fov) {
@@ -444,16 +462,28 @@ function zoomTo(fov) {
 }
 
 function zoomIn() {
+  if (currentVideoViewer) {
+    currentVideoViewer.zoomIn();
+    return;
+  }
   if (!currentView) return;
   zoomTo(currentView.fov() * ZOOM_STEP);
 }
 
 function zoomOut() {
+  if (currentVideoViewer) {
+    currentVideoViewer.zoomOut();
+    return;
+  }
   if (!currentView) return;
   zoomTo(currentView.fov() / ZOOM_STEP);
 }
 
 function resetView() {
+  if (currentVideoViewer) {
+    currentVideoViewer.resetView();
+    return;
+  }
   if (!currentView) return;
   currentView.setParameters({ ...currentStartView });
   setZoomLabel();
@@ -500,6 +530,10 @@ function toggleCinematic() {
 }
 
 function toggleFullscreen() {
+  if (currentVideoViewer) {
+    currentVideoViewer.toggleFullscreen();
+    return;
+  }
   if (!document.fullscreenElement) {
     document.documentElement.requestFullscreen?.();
   } else {
@@ -611,6 +645,26 @@ document.addEventListener('keydown', (event) => {
 
   const tag = String(document.activeElement?.tagName || '').toLowerCase();
   if (['input', 'textarea', 'select'].includes(tag)) return;
+
+  if (currentVideoViewer) {
+    if (tag === 'button') return;
+    if (event.code === 'Space') {
+      event.preventDefault();
+      currentVideoViewer.togglePlay();
+      return;
+    }
+    const directions = {
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0],
+      ArrowUp: [0, 1],
+      ArrowDown: [0, -1]
+    };
+    if (directions[event.key]) {
+      event.preventDefault();
+      currentVideoViewer.lookBy(...directions[event.key]);
+      return;
+    }
+  }
 
   if (event.key === '+' || event.key === '=') zoomIn();
   if (event.key === '-' || event.key === '_') zoomOut();
