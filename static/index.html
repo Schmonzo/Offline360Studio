@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Panorama Studio</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+  <aside class="sidebar">
+    <header class="brand">
+      <div class="brand-mark">PS</div>
+      <div>
+        <h1>Panorama Studio</h1>
+        <p>Offline 360° Showcase · v0.3.1</p>
+      </div>
+    </header>
+
+    <section class="stats-grid" id="statsGrid">
+      <div><strong>0</strong><span>Fotos</span></div>
+      <div><strong>0</strong><span>Videos</span></div>
+      <div><strong>0</strong><span>Favoriten</span></div>
+      <div><strong>0</strong><span>Projekte</span></div>
+    </section>
+
+    <div class="toolbar">
+      <button id="rescanBtn">Neu einlesen</button>
+      <button id="adminToggleBtn">Admin</button>
+    </div>
+
+    <input id="searchInput" class="search" placeholder="Suchen…" />
+
+    <div class="filter-row">
+      <select id="projectFilter"><option value="">Alle Projekte</option></select>
+      <select id="typeFilter"><option value="">Alle Medien</option><option value="photo">Fotos</option><option value="video">Videos</option></select>
+    </div>
+    <div class="filter-row">
+      <select id="categoryFilter"><option value="">Alle Kategorien</option></select>
+      <button id="favoritesOnlyBtn" class="toggle-btn">★ Favoriten</button>
+    </div>
+    <div class="filter-row view-row">
+      <button id="listViewBtn" class="toggle-btn active">Liste</button>
+      <button id="gridViewBtn" class="toggle-btn">Kacheln</button>
+    </div>
+
+    <section id="gallery" class="gallery"></section>
+  </aside>
+
+  <main class="stage">
+    <div id="viewer" class="viewer">
+      <div class="empty-state">
+        <h2>Bereit.</h2>
+        <p>Kopiere JPGs nach <code>media/photos</code> oder MP4s nach <code>media/videos</code> und klicke auf <strong>Neu einlesen</strong>.</p>
+      </div>
+    </div>
+
+    <div class="topbar">
+      <div>
+        <div id="currentTitle">Kein Medium gewählt</div>
+        <div id="currentMeta" class="current-meta">Projekt / Kategorie</div>
+      </div>
+      <button id="fullscreenBtn">Vollbild</button>
+    </div>
+
+    <div class="viewer-controls" aria-label="Viewer Steuerung">
+      <button id="zoomInBtn" title="Hineinzoomen (+)">+</button>
+      <div id="zoomLabel" class="zoom-label">0%</div>
+      <button id="zoomOutBtn" title="Herauszoomen (-)">−</button>
+      <button id="homeBtn" title="Startansicht (H)">Home</button>
+      <button id="cinematicBtn" title="Cinematic Mode (C)">Auto</button>
+    </div>
+  </main>
+
+  <aside id="adminPanel" class="admin-panel hidden">
+    <div class="admin-header">
+      <h2>Admin</h2>
+      <button id="closeAdminBtn">×</button>
+    </div>
+
+    <label class="admin-upload-project">Upload-Projekt
+      <input id="uploadProject" placeholder="Default" value="Default" />
+    </label>
+
+    <div id="dropZone" class="drop-zone">
+      <strong>Dateien hier ablegen</strong>
+      <span>JPG, PNG, MP4 · automatisch ins Upload-Projekt</span>
+      <input id="fileInput" type="file" multiple accept="image/*,video/mp4,video/quicktime" />
+    </div>
+
+    <form id="editForm" class="edit-form">
+      <label>Titel<input id="editTitle" /></label>
+      <label>Projekt<input id="editProject" /></label>
+      <label>Kategorie<input id="editCategory" placeholder="z.B. Berge, Messe, Familie" /></label>
+      <label>Beschreibung<textarea id="editDescription"></textarea></label>
+      <label class="check"><input id="editFavorite" type="checkbox" /> Favorit</label>
+      <label class="check"><input id="editVisible" type="checkbox" checked /> Sichtbar</label>
+      <button type="submit">Speichern</button>
+    </form>
+
+    <pre id="statusBox" class="status-box">Status: bereit</pre>
+  </aside>
+
+  <script src="/static/lib/marzipano.js"></script>
+  <script src="/static/js/viewer.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
