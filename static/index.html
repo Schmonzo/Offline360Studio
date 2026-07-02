@@ -87,6 +87,8 @@
       <input id="fileInput" type="file" multiple accept="image/*,video/mp4,video/quicktime" />
     </div>
 
+    <button id="addHotspotBtn" class="add-hotspot-btn hidden" type="button" aria-pressed="false">Hotspot hinzufügen</button>
+
     <form id="editForm" class="edit-form">
       <label>Titel<input id="editTitle" /></label>
       <label>Projekt<input id="editProject" /></label>
@@ -100,8 +102,56 @@
     <pre id="statusBox" class="status-box">Status: bereit</pre>
   </aside>
 
+  <dialog id="hotspotInfoDialog" class="hotspot-dialog" aria-labelledby="hotspotInfoTitle" aria-describedby="hotspotInfoText">
+    <div class="hotspot-dialog__content">
+      <h2 id="hotspotInfoTitle">Information</h2>
+      <p id="hotspotInfoText"></p>
+      <div class="hotspot-dialog__actions">
+        <button id="closeHotspotInfoBtn" type="button">Schließen</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="hotspotEditorDialog" class="hotspot-dialog hotspot-editor-dialog" aria-labelledby="hotspotEditorTitle">
+    <form id="hotspotEditorForm" class="hotspot-dialog__content hotspot-editor-form" novalidate>
+      <h2 id="hotspotEditorTitle">Hotspot bearbeiten</h2>
+      <label>Typ
+        <select id="hotspotType">
+          <option value="panorama">Panorama</option>
+          <option value="info">Info</option>
+        </select>
+      </label>
+      <label>Titel
+        <input id="hotspotTitle" type="text" />
+      </label>
+      <label>Infotext
+        <textarea id="hotspotInfoTextInput"></textarea>
+      </label>
+      <label>Zielpanorama
+        <select id="hotspotTarget"></select>
+      </label>
+      <label class="check"><input id="hotspotVisible" type="checkbox" checked /> Sichtbar</label>
+      <div class="hotspot-coordinate-row">
+        <label>Yaw
+          <input id="hotspotYaw" type="text" readonly />
+        </label>
+        <label>Pitch
+          <input id="hotspotPitch" type="text" readonly />
+        </label>
+      </div>
+      <p id="hotspotEditorError" class="form-error hidden" role="alert"></p>
+      <div class="hotspot-editor-actions">
+        <button id="deleteHotspotBtn" class="danger hidden" type="button">Löschen</button>
+        <span></span>
+        <button id="cancelHotspotBtn" type="button">Abbrechen</button>
+        <button id="saveHotspotBtn" type="submit">Speichern</button>
+      </div>
+    </form>
+  </dialog>
+
   <script src="/static/lib/marzipano.js"></script>
   <script src="/static/js/viewer.js"></script>
+  <script src="/static/js/admin.js"></script>
   <script src="/static/js/app.js"></script>
 </body>
 </html>
