@@ -288,6 +288,18 @@ def project_payload(
     include_media: bool = True,
 ) -> dict[str, Any]:
     result = dict(row)
+    cover = None
+    if row["cover_media_id"] is not None:
+        cover = conn.execute(
+            """
+            SELECT m.id, m.type, m.file_path, m.thumb_path, m.title
+            FROM media m
+            JOIN project_media pm ON pm.media_id = m.id
+            WHERE pm.project_id = ? AND m.id = ?
+            """,
+            (row["id"], row["cover_media_id"]),
+        ).fetchone()
+    result["cover_media"] = dict(cover) if cover is not None else None
     if include_media:
         media = conn.execute(
             """
