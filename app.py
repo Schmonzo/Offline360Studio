@@ -3,19 +3,25 @@ from __future__ import annotations
 import math
 import os
 import sqlite3
+import tempfile
+import threading
 import time
 import webbrowser
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory
+from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 from PIL import Image
+
+from core import backup
 
 BASE_DIR = Path(__file__).resolve().parent
 os.chdir(BASE_DIR)
 
 DATA_DIR = BASE_DIR / "data"
+CONFIG_DIR = DATA_DIR / "config"
 MEDIA_DIR = BASE_DIR / "media"
 PHOTO_DIR = MEDIA_DIR / "photos"
 VIDEO_DIR = MEDIA_DIR / "videos"
@@ -29,9 +35,20 @@ MAX_START_FOV = math.radians(165)
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024 * 1024  # 25 GB
+DATA_OPERATION_LOCK = threading.RLock()
 
 
 class DatabaseConnection(sqlite3.Connection):
+    _data_lock_acquired = False
+
+    def close(self):
+        try:
+            return super().close()
+        finally:
+            if self._data_lock_acquired:
+                self._data_lock_acquired = False
+                DATA_OPERATION_LOCK.release()
+
     def __exit__(self, exc_type, exc_value, traceback):
         try:
             return super().__exit__(exc_type, exc_value, traceback)
@@ -40,15 +57,24 @@ class DatabaseConnection(sqlite3.Connection):
 
 
 def ensure_dirs() -> None:
-    for path in [DATA_DIR, PHOTO_DIR, VIDEO_DIR, THUMB_DIR]:
+    for path in [DATA_DIR, CONFIG_DIR, PHOTO_DIR, VIDEO_DIR, THUMB_DIR]:
         path.mkdir(parents=True, exist_ok=True)
 
 
 def db() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH, factory=DatabaseConnection)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    DATA_OPERATION_LOCK.acquire()
+    try:
+        conn = sqlite3.connect(DB_PATH, factory=DatabaseConnection)
+        conn._data_lock_acquired = True
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        return conn
+    except Exception:
+        if "conn" in locals():
+            conn.close()
+        else:
+            DATA_OPERATION_LOCK.release()
+        raise
 
 
 def ensure_column(conn: sqlite3.Connection, table: str, column: str, ddl: str) -> None:
@@ -258,6 +284,15 @@ def stats_payload() -> dict[str, Any]:
 
 def api_error(code: str, message: str, status: int):
     return jsonify({"error": {"code": code, "message": message}}), status
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_request_too_large(_error):
+    return api_error(
+        "request_too_large",
+        "Die Anfrage überschreitet das zulässige Größenlimit.",
+        413,
+    )
 
 
 def media_row(conn: sqlite3.Connection, media_id: int) -> sqlite3.Row | None:
@@ -1136,6 +1171,93 @@ def api_delete_hotspot(hotspot_id: int):
 def api_rescan():
     result = scan_media()
     return jsonify({"status": "ok", **result, "stats": stats_payload()})
+
+
+@app.route("/api/backup/export", methods=["POST"])
+def api_backup_export():
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict) or type(payload.get("includes_media")) is not bool:
+        return api_error(
+            "invalid_request",
+            "includes_media muss als Boolean angegeben werden.",
+            400,
+        )
+
+    temporary_dir = tempfile.TemporaryDirectory(prefix="panorama-export-")
+    try:
+        with DATA_OPERATION_LOCK:
+            init_db()
+            artifact = backup.create_backup(
+                DB_PATH,
+                CONFIG_DIR,
+                MEDIA_DIR,
+                payload["includes_media"],
+                Path(temporary_dir.name),
+            )
+
+        def stream_archive():
+            try:
+                with artifact.path.open("rb") as archive_file:
+                    while chunk := archive_file.read(1024 * 1024):
+                        yield chunk
+            finally:
+                temporary_dir.cleanup()
+
+        response = Response(
+            stream_archive(),
+            mimetype="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{artifact.filename}"',
+                "Content-Length": str(artifact.path.stat().st_size),
+                "X-Content-Type-Options": "nosniff",
+            },
+        )
+        response.call_on_close(temporary_dir.cleanup)
+        return response
+    except backup.BackupError as exc:
+        temporary_dir.cleanup()
+        return api_error(exc.code, exc.message, exc.status)
+    except Exception:
+        temporary_dir.cleanup()
+        app.logger.exception("Unerwarteter Fehler beim Backup-Export")
+        return api_error(
+            "backup_export_failed",
+            "Das Backup konnte nicht erstellt werden.",
+            500,
+        )
+
+
+@app.route("/api/backup/import", methods=["POST"])
+def api_backup_import():
+    uploaded = request.files.get("file")
+    if uploaded is None or not uploaded.filename:
+        return api_error("backup_file_missing", "Bitte eine ZIP-Datei auswählen.", 400)
+    if Path(uploaded.filename).suffix.lower() != ".zip":
+        return api_error("invalid_file_type", "Es werden nur ZIP-Dateien akzeptiert.", 415)
+
+    with tempfile.TemporaryDirectory(prefix="panorama-import-") as temporary_dir:
+        archive_path = Path(temporary_dir) / "upload.zip"
+        try:
+            backup.save_upload(uploaded.stream, archive_path)
+            with DATA_OPERATION_LOCK:
+                init_db()
+                result = backup.restore_backup(
+                    archive_path,
+                    DB_PATH,
+                    CONFIG_DIR,
+                    MEDIA_DIR,
+                    DATA_DIR / "backups",
+                )
+            return jsonify(result)
+        except backup.BackupError as exc:
+            return api_error(exc.code, exc.message, exc.status)
+        except Exception:
+            app.logger.exception("Unerwarteter Fehler beim Backup-Import")
+            return api_error(
+                "restore_failed",
+                "Das Backup konnte nicht wiederhergestellt werden.",
+                500,
+            )
 
 
 @app.route("/api/media/<int:media_id>", methods=["PATCH"])
