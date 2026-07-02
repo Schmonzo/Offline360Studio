@@ -100,6 +100,16 @@
     <pre id="statusBox" class="status-box">Status: bereit</pre>
   </aside>
 
+  <dialog id="hotspotInfoDialog" class="hotspot-dialog" aria-labelledby="hotspotInfoTitle" aria-describedby="hotspotInfoText">
+    <div class="hotspot-dialog__content">
+      <h2 id="hotspotInfoTitle">Information</h2>
+      <p id="hotspotInfoText"></p>
+      <div class="hotspot-dialog__actions">
+        <button id="closeHotspotInfoBtn" type="button">Schließen</button>
+      </div>
+    </div>
+  </dialog>
+
   <script src="/static/lib/marzipano.js"></script>
   <script src="/static/js/viewer.js"></script>
   <script src="/static/js/app.js"></script>

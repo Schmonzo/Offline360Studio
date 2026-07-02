@@ -6,6 +6,10 @@ let currentScene = null;
 let currentView = null;
 let currentItem = null;
 let autorotateTimer = null;
+let currentHotspotContainer = null;
+let currentHotspots = [];
+let sceneGeneration = 0;
+let panoramaNavigationCallback = null;
 
 const DEFAULT_VIEW = {
   yaw: 0,
@@ -45,6 +49,19 @@ function stopAutorotate() {
 
 function destroyCurrentScene() {
   stopAutorotate();
+  sceneGeneration += 1;
+
+  if (currentHotspotContainer) {
+    currentHotspots.forEach(hotspot => {
+      try {
+        currentHotspotContainer.destroyHotspot(hotspot);
+      } catch (error) {
+        console.warn('Hotspot cleanup warning:', error);
+      }
+    });
+  }
+  currentHotspots = [];
+  currentHotspotContainer = null;
 
   // Marzipano keeps renderer/canvas state internally. For reliable image switching,
   // reset the scene AND the viewer instance, then rebuild the DOM container.
@@ -67,6 +84,92 @@ function destroyCurrentScene() {
   setZoomLabel();
 }
 
+function openInfoDialog(title, text) {
+  const dialog = document.getElementById('hotspotInfoDialog');
+  const titleElement = document.getElementById('hotspotInfoTitle');
+  const textElement = document.getElementById('hotspotInfoText');
+  if (!dialog || !titleElement || !textElement) return;
+
+  titleElement.textContent = title || 'Information';
+  textElement.textContent = text || 'Für diesen Hotspot sind keine weiteren Informationen hinterlegt.';
+
+  if (typeof dialog.showModal === 'function') {
+    if (!dialog.open) dialog.showModal();
+  } else {
+    dialog.setAttribute('open', '');
+  }
+  document.getElementById('closeHotspotInfoBtn')?.focus();
+}
+
+function closeInfoDialog() {
+  const dialog = document.getElementById('hotspotInfoDialog');
+  if (!dialog) return;
+  if (typeof dialog.close === 'function' && dialog.open) dialog.close();
+  else dialog.removeAttribute('open');
+}
+
+function createHotspotElement(hotspot) {
+  const marker = document.createElement('button');
+  const title = hotspot.title || (hotspot.action_type === 'panorama' ? 'Panorama öffnen' : 'Information öffnen');
+  marker.type = 'button';
+  marker.className = `hotspot-marker hotspot-marker--${hotspot.action_type}`;
+  marker.setAttribute('aria-label', title);
+
+  const icon = document.createElement('span');
+  icon.className = 'hotspot-marker__icon';
+  icon.setAttribute('aria-hidden', 'true');
+  icon.textContent = hotspot.action_type === 'panorama' ? '→' : 'i';
+
+  const label = document.createElement('span');
+  label.className = 'hotspot-marker__label';
+  label.textContent = title;
+  marker.append(icon, label);
+
+  ['pointerdown', 'mousedown', 'touchstart'].forEach(eventName => {
+    marker.addEventListener(eventName, event => event.stopPropagation());
+  });
+  marker.addEventListener('click', event => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (hotspot.action_type === 'panorama') {
+      if (typeof panoramaNavigationCallback === 'function') {
+        panoramaNavigationCallback(hotspot.target_media_id);
+      }
+    } else {
+      openInfoDialog(hotspot.title, hotspot.info_text);
+    }
+  });
+
+  return marker;
+}
+
+async function loadHotspots(mediaId, scene, generation) {
+  try {
+    const response = await fetch(`/api/media/${mediaId}/hotspots`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+
+    if (generation !== sceneGeneration || scene !== currentScene) return;
+
+    currentHotspotContainer = scene.hotspotContainer();
+    (data.items || [])
+      .filter(hotspot => hotspot.visible && ['panorama', 'info'].includes(hotspot.action_type))
+      .filter(hotspot => Number.isFinite(hotspot.yaw) && Number.isFinite(hotspot.pitch))
+      .forEach(hotspot => {
+        const element = createHotspotElement(hotspot);
+        const instance = currentHotspotContainer.createHotspot(element, {
+          yaw: hotspot.yaw,
+          pitch: hotspot.pitch
+        });
+        currentHotspots.push(instance);
+      });
+  } catch (error) {
+    if (generation === sceneGeneration && scene === currentScene) {
+      console.warn('Hotspots konnten nicht geladen werden:', error);
+    }
+  }
+}
+
 function showError(message) {
   const el = viewerElement();
   if (!el) return;
@@ -81,6 +184,7 @@ function showError(message) {
 function showPhoto(item) {
   destroyCurrentScene();
   currentItem = item;
+  const generation = sceneGeneration;
 
   const el = viewerElement();
   if (!el) return;
@@ -118,6 +222,7 @@ function showPhoto(item) {
 
   currentView.addEventListener?.('change', setZoomLabel);
   currentScene.switchTo({ transitionDuration: 250 });
+  loadHotspots(item.id, currentScene, generation);
   setZoomLabel();
 }
 
@@ -199,17 +304,34 @@ function toggleFullscreen() {
   }
 }
 
+function setPanoramaNavigationCallback(callback) {
+  panoramaNavigationCallback = typeof callback === 'function' ? callback : null;
+}
+
 window.viewerControls = {
   zoomIn,
   zoomOut,
   resetView,
   toggleCinematic,
-  toggleFullscreen
+  toggleFullscreen,
+  openInfoDialog,
+  closeInfoDialog,
+  setPanoramaNavigationCallback
 };
 
 window.loadViewer = loadViewer;
 
+document.getElementById('closeHotspotInfoBtn')?.addEventListener('click', closeInfoDialog);
+
 document.addEventListener('keydown', (event) => {
+  if (document.getElementById('hotspotInfoDialog')?.open) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeInfoDialog();
+    }
+    return;
+  }
+
   const tag = String(document.activeElement?.tagName || '').toLowerCase();
   if (['input', 'textarea', 'select'].includes(tag)) return;
 

@@ -115,6 +115,43 @@ function selectItem(item) {
   loadViewer(item);
 }
 
+function showNavigationMessage(message) {
+  if (window.viewerControls?.openInfoDialog) {
+    window.viewerControls.openInfoDialog('Panorama nicht verfügbar', message);
+  } else {
+    window.alert(message);
+  }
+}
+
+function openMediaById(mediaId) {
+  const item = mediaItems.find(candidate => String(candidate.id) === String(mediaId));
+  if (!item) {
+    showNavigationMessage('Das verknüpfte Zielpanorama wurde nicht gefunden.');
+    return false;
+  }
+  if (!item.visible) {
+    showNavigationMessage('Das verknüpfte Zielpanorama ist derzeit nicht sichtbar.');
+    return false;
+  }
+  if (item.type !== 'photo') {
+    showNavigationMessage('Das verknüpfte Ziel ist kein Panorama.');
+    return false;
+  }
+
+  if (!filteredItems().some(candidate => candidate.id === item.id)) {
+    searchInput.value = '';
+    projectFilter.value = '';
+    categoryFilter.value = '';
+    typeFilter.value = '';
+    favoritesOnly = false;
+  }
+  selectItem(item);
+  return true;
+}
+
+window.openMediaById = openMediaById;
+window.viewerControls?.setPanoramaNavigationCallback(openMediaById);
+
 function fillForm(item) {
   document.getElementById('editTitle').value = item.title || '';
   document.getElementById('editProject').value = item.project || 'Default';
