@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Panorama Studio</title>
   <link rel="stylesheet" href="/static/lib/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="/static/lib/maplibre/maplibre-gl.css" />
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
@@ -67,8 +68,32 @@
     </div>
     <section id="mapView" class="map-view hidden" aria-label="Kartenansicht">
       <div id="mapCanvas" class="map-canvas"></div>
+      <p id="mapTileStatus" class="map-tile-status hidden" role="status" aria-live="polite"></p>
+      <p id="mapAttribution" class="map-attribution hidden"></p>
       <div id="mapEmptyState" class="map-empty-state hidden" role="status">
         Keine sichtbaren Medien mit GPS-Position im aktuellen Filter.
+      </div>
+      <div id="mapControls" class="map-controls map-controls--hidden" aria-hidden="true" inert>
+        <section class="map-basemap-control" aria-labelledby="mapBasemapTitle">
+          <h2 id="mapBasemapTitle">Basiskarte</h2>
+          <label for="mapBasemapSelect">Quelle</label>
+          <select id="mapBasemapSelect" aria-label="Basiskarte auswählen">
+            <option value="">Keine Basiskarte</option>
+          </select>
+          <p id="mapBasemapStatus" class="map-basemap-status" role="status" aria-live="polite">
+            Aktiv: Keine Basiskarte
+          </p>
+        </section>
+        <section id="mapTrackControl" class="map-track-control" aria-labelledby="mapTrackTitle">
+          <div class="map-track-control__header">
+            <h2 id="mapTrackTitle">GPX-Tracks</h2>
+            <div class="map-track-control__actions" role="group" aria-label="Sichtbarkeit aller GPX-Tracks">
+              <button id="showAllMapTracksBtn" type="button">Alle anzeigen</button>
+              <button id="hideAllMapTracksBtn" type="button">Alle ausblenden</button>
+            </div>
+          </div>
+          <div id="mapTrackList" class="map-track-list"></div>
+        </section>
       </div>
     </section>
 
@@ -217,6 +242,19 @@
       <p id="gpxStatus" class="inline-status" role="status" aria-live="polite">Bereit.</p>
     </section>
 
+    <section class="offline-maps-admin" aria-labelledby="offlineMapsTitle">
+      <h3 id="offlineMapsTitle">Offline-Karten</h3>
+      <p>Lokale Raster-MBTiles (PNG, JPEG, WebP) oder Vector-MBTiles (PBF/MVT), maximal 5 GB.</p>
+      <form id="offlineMapImportForm">
+        <label for="offlineMapFile">MBTiles-Datei auswählen
+          <input id="offlineMapFile" name="file" type="file" accept=".mbtiles" required />
+        </label>
+        <button id="offlineMapImportBtn" type="submit">Importieren</button>
+      </form>
+      <div id="offlineMapList" class="offline-map-list"></div>
+      <p id="offlineMapStatus" class="inline-status" role="status" aria-live="polite">Bereit.</p>
+    </section>
+
     <section class="backup-admin" aria-labelledby="backupTitle">
       <h3 id="backupTitle">Backup &amp; Restore</h3>
       <p>Projekte, Zuordnungen, Hotspots, Startansichten und Einstellungen lokal als ZIP sichern.</p>
@@ -224,6 +262,10 @@
         <button id="exportWithoutMediaBtn" type="button">Backup ohne Medien</button>
         <button id="exportWithMediaBtn" type="button">Backup mit Medien</button>
       </div>
+      <label class="backup-maps-option">
+        <input id="backupIncludeMaps" type="checkbox" />
+        Offline-Karten einschließen (kann das Backup stark vergrößern)
+      </label>
       <form id="restoreForm" class="restore-form">
         <label for="backupFile">ZIP-Backup auswählen
           <input id="backupFile" name="file" type="file" accept=".zip,application/zip" required />
@@ -232,6 +274,7 @@
         <p class="backup-warning">
           Achtung: Ein Restore ersetzt die lokale Datenbank und Konfiguration.
           Enthaltene Medien ersetzen außerdem das Medienverzeichnis.
+          Enthaltene Offline-Karten ersetzen das Kartenverzeichnis.
         </p>
         <button id="restoreBtn" class="danger" type="submit">Backup wiederherstellen</button>
       </form>
@@ -303,13 +346,16 @@
 
   <script src="/static/lib/marzipano.js"></script>
   <script src="/static/lib/leaflet/leaflet.js"></script>
+  <script src="/static/lib/maplibre/maplibre-gl.js"></script>
   <script src="/static/js/video360.js"></script>
   <script src="/static/js/tinyplanet.js"></script>
   <script src="/static/js/viewer.js"></script>
   <script src="/static/js/admin.js"></script>
   <script src="/static/js/backup.js"></script>
-  <script src="/static/js/map.js"></script>
+  <script src="/static/js/map_sources.js"></script>
+  <script src="/static/js/offline_maps.js"></script>
   <script src="/static/js/app.js"></script>
+  <script src="/static/js/map.js"></script>
   <script src="/static/js/projects.js"></script>
 </body>
 </html>

@@ -8,6 +8,10 @@ const gallery = document.getElementById('gallery');
 const statusBox = document.getElementById('statusBox');
 const searchInput = document.getElementById('searchInput');
 const adminPanel = document.getElementById('adminPanel');
+const stageElement = document.querySelector('.stage');
+const viewerRootElement = document.getElementById('viewer');
+const mapViewElement = document.getElementById('mapView');
+const mapControlsElement = document.getElementById('mapControls');
 const editForm = document.getElementById('editForm');
 const projectFilter = document.getElementById('projectFilter');
 const categoryFilter = document.getElementById('categoryFilter');
@@ -16,25 +20,68 @@ const favoritesOnlyBtn = document.getElementById('favoritesOnlyBtn');
 const listViewBtn = document.getElementById('listViewBtn');
 const gridViewBtn = document.getElementById('gridViewBtn');
 
+const uiState = {
+  mapViewActive: false,
+  adminOpen: false
+};
+
+function applyUiState() {
+  const mapControlsVisible = uiState.mapViewActive && !uiState.adminOpen;
+  viewerRootElement?.classList.toggle('hidden', uiState.mapViewActive);
+  mapViewElement?.classList.toggle('hidden', !uiState.mapViewActive);
+  adminPanel?.classList.toggle('hidden', !uiState.adminOpen);
+  stageElement?.classList.toggle('map-mode', uiState.mapViewActive);
+  stageElement?.classList.toggle('admin-open', uiState.adminOpen);
+  mapControlsElement?.classList.toggle('map-controls--hidden', !mapControlsVisible);
+  mapControlsElement?.setAttribute('aria-hidden', String(!mapControlsVisible));
+  if (mapControlsElement) mapControlsElement.inert = !mapControlsVisible;
+}
+
+window.appUiState = {
+  setMapViewActive(active) {
+    uiState.mapViewActive = Boolean(active);
+    applyUiState();
+  },
+  setAdminOpen(open) {
+    uiState.adminOpen = Boolean(open);
+    applyUiState();
+  },
+  getSnapshot() {
+    return { ...uiState };
+  }
+};
+applyUiState();
+
 function setStatus(message) { statusBox.textContent = 'Status: ' + message; }
 function mediaUrl(path) { return '/' + path; }
+
+function callOptionalUi(apiName, methodName, ...args) {
+  try {
+    const result = window[apiName]?.[methodName]?.(...args);
+    result?.catch?.(error => {
+      console.warn(`${apiName}.${methodName} wurde asynchron abgebrochen:`, error);
+    });
+  } catch (error) {
+    console.warn(`${apiName}.${methodName} konnte nicht ausgeführt werden:`, error);
+  }
+}
 
 async function loadMedia() {
   const res = await fetch('/api/media');
   const data = await res.json();
   mediaItems = data.items || [];
-  window.hotspotAdmin?.setMediaItems(mediaItems);
-  window.projectUi?.setMediaItems(mediaItems);
-  window.mapUi?.setMediaItems(mediaItems);
-  if (selectedItem) {
-    selectedItem = mediaItems.find(item => item.id === selectedItem.id) || null;
-    window.hotspotAdmin?.setCurrentItem(selectedItem);
-    window.mapUi?.setCurrentItem(selectedItem);
-  }
   stats = data.stats || null;
   updateStats();
   updateFilters();
   renderGallery();
+  callOptionalUi('hotspotAdmin', 'setMediaItems', mediaItems);
+  callOptionalUi('projectUi', 'setMediaItems', mediaItems);
+  callOptionalUi('mapUi', 'setMediaItems', mediaItems);
+  if (selectedItem) {
+    selectedItem = mediaItems.find(item => item.id === selectedItem.id) || null;
+    callOptionalUi('hotspotAdmin', 'setCurrentItem', selectedItem);
+    callOptionalUi('mapUi', 'setCurrentItem', selectedItem);
+  }
 }
 
 function updateStats() {
@@ -166,9 +213,9 @@ function renderGallery() {
 
 function selectItem(item) {
   selectedItem = item;
-  window.hotspotAdmin?.setCurrentItem(item);
-  window.mapUi?.setCurrentItem(item);
-  window.projectUi?.onMediaSelected(item);
+  callOptionalUi('hotspotAdmin', 'setCurrentItem', item);
+  callOptionalUi('mapUi', 'setCurrentItem', item);
+  callOptionalUi('projectUi', 'onMediaSelected', item);
   fillForm(item);
   renderGallery();
   loadViewer(item);
@@ -185,7 +232,10 @@ function showNavigationMessage(message) {
   if (window.viewerControls?.openInfoDialog) {
     window.viewerControls.openInfoDialog('Panorama nicht verfügbar', message);
   } else {
-    window.alert(message);
+    const status = document.getElementById('viewerMessage');
+    if (!status) return;
+    status.textContent = message;
+    status.classList.remove('hidden');
   }
 }
 
@@ -218,7 +268,7 @@ function openMediaById(mediaId) {
 window.openMediaById = openMediaById;
 window.selectMediaById = selectMediaById;
 window.reloadMedia = loadMedia;
-window.viewerControls?.setPanoramaNavigationCallback(openMediaById);
+callOptionalUi('viewerControls', 'setPanoramaNavigationCallback', openMediaById);
 
 function fillForm(item) {
   document.getElementById('editTitle').value = item.title || '';
@@ -251,9 +301,9 @@ async function uploadFiles(files) {
 
 document.getElementById('rescanBtn').onclick = rescan;
 function setAdminMode(enabled) {
-  adminPanel.classList.toggle('hidden', !enabled);
-  window.hotspotAdmin?.setAdminMode(enabled);
-  window.projectUi?.setAdminMode(enabled);
+  window.appUiState.setAdminOpen(enabled);
+  callOptionalUi('hotspotAdmin', 'setAdminMode', enabled);
+  callOptionalUi('projectUi', 'setAdminMode', enabled);
 }
 
 document.getElementById('adminToggleBtn').onclick = () => setAdminMode(adminPanel.classList.contains('hidden'));

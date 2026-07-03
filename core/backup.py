@@ -15,6 +15,8 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import BinaryIO
 
+from core import mbtiles
+
 
 APP_NAME = "Panorama Studio"
 APP_VERSION = "0.3.1"
@@ -43,7 +45,8 @@ README_TEXT = """Panorama Studio backup
 
 This ZIP archive contains a consistent SQLite database backup and local
 configuration files. Media files are included only when manifest.json sets
-"includes_media" to true.
+"includes_media" to true. Offline maps are included only when "includes_maps"
+is true.
 
 Restore this archive only through Panorama Studio's Backup & Restore section.
 Do not edit the archive or extract it over an installation manually.
@@ -101,6 +104,12 @@ def _media_files(media_dir: Path):
             yield path
 
 
+def _map_files(maps_dir: Path):
+    for path in _regular_files(maps_dir):
+        if path.parent == maps_dir and path.suffix.lower() == ".mbtiles":
+            yield path
+
+
 def _copy_database(source: Path, destination: Path) -> None:
     if not source.is_file():
         raise BackupError("database_missing", "Die lokale Datenbank wurde nicht gefunden.", 500)
@@ -136,6 +145,8 @@ def create_backup(
     output_dir: Path,
     *,
     filename_prefix: str = "panorama-studio-backup",
+    maps_dir: Path | None = None,
+    includes_maps: bool = False,
 ) -> BackupArtifact:
     output_dir.mkdir(parents=True, exist_ok=True)
     workspace = Path(tempfile.mkdtemp(prefix="panorama-backup-", dir=output_dir))
@@ -144,12 +155,26 @@ def create_backup(
         _copy_database(database_path, database_copy)
         media_count, project_count = _database_counts(database_copy)
         media_files = list(_media_files(media_dir)) if includes_media else []
+        map_files = (
+            list(_map_files(maps_dir))
+            if includes_maps and maps_dir is not None
+            else []
+        )
+        if includes_maps:
+            if maps_dir is None:
+                raise BackupError(
+                    "maps_backup_unavailable",
+                    "Für dieses Backup ist kein Kartenverzeichnis konfiguriert.",
+                    500,
+                )
+            check_map_sources(database_copy, maps_dir, True)
         manifest = {
             "app_name": APP_NAME,
             "app_version": APP_VERSION,
             "backup_version": BACKUP_VERSION,
             "created_at": utc_timestamp(),
             "includes_media": includes_media,
+            "includes_maps": includes_maps,
             "database_filename": DATABASE_FILENAME,
             "media_count": media_count,
             "project_count": project_count,
@@ -169,6 +194,8 @@ def create_backup(
                 archive.write(path, f"config/{path.relative_to(config_dir).as_posix()}")
             for path in media_files:
                 archive.write(path, f"media/{path.relative_to(media_dir).as_posix()}")
+            for path in map_files:
+                archive.write(path, f"maps/{path.name}")
         return BackupArtifact(archive_path, filename, manifest)
     except BackupError:
         raise
@@ -237,6 +264,8 @@ def _validate_expected_path(path: PurePosixPath, manifest: dict, is_dir: bool) -
             len(path.parts) == 1 or path.parts[1] in MEDIA_EXTENSIONS
         ):
             return
+        if path.parts[0] == "maps" and len(path.parts) == 1:
+            return
         raise BackupError("unexpected_archive_path", f"Unerwarteter Verzeichnispfad: {name}")
     if name in {"manifest.json", "README.txt", manifest["database_filename"]}:
         return
@@ -250,6 +279,16 @@ def _validate_expected_path(path: PurePosixPath, manifest: dict, is_dir: bool) -
             raise BackupError("unexpected_media", "Das Manifest deklariert keine Mediendateien.")
         if media_kind not in MEDIA_EXTENSIONS or path.suffix.lower() not in MEDIA_EXTENSIONS[media_kind]:
             raise BackupError("invalid_file_type", f"Unzulässige Mediendatei: {name}")
+        return
+    if path.parts[0] == "maps" and len(path.parts) == 2:
+        if not manifest["includes_maps"]:
+            raise BackupError(
+                "unexpected_maps", "Das Manifest deklariert keine Offline-Karten."
+            )
+        if path.suffix.lower() != ".mbtiles":
+            raise BackupError(
+                "invalid_file_type", f"Unzulässige Kartendatei: {name}"
+            )
         return
     raise BackupError("unexpected_archive_path", f"Unerwarteter Pfad im Backup: {name}")
 
@@ -280,6 +319,9 @@ def _read_manifest(archive: zipfile.ZipFile) -> dict:
         for key, expected in required.items()
     ):
         raise BackupError("manifest_invalid", "manifest.json enthält nicht alle erwarteten Felder.")
+    if "includes_maps" in manifest and type(manifest["includes_maps"]) is not bool:
+        raise BackupError("manifest_invalid", "includes_maps muss ein Boolean sein.")
+    manifest["includes_maps"] = manifest.get("includes_maps", False)
     if manifest["app_name"] != APP_NAME:
         raise BackupError("manifest_invalid", "Das Backup gehört nicht zu Panorama Studio.")
     if manifest["backup_version"] != BACKUP_VERSION:
@@ -379,6 +421,54 @@ def check_database(database_path: Path) -> None:
         raise BackupError("database_integrity_failed", "Die Backup-Datenbank ist ungültig.") from exc
 
 
+def check_map_sources(
+    database_path: Path, extracted_maps: Path, includes_maps: bool
+) -> None:
+    try:
+        with closing(
+            sqlite3.connect(f"file:{database_path.as_posix()}?mode=ro", uri=True)
+        ) as conn:
+            table_exists = conn.execute(
+                """
+                SELECT 1 FROM sqlite_master
+                WHERE type = 'table' AND name = 'map_sources'
+                """
+            ).fetchone()
+            if table_exists is None:
+                if includes_maps:
+                    raise BackupError(
+                        "database_schema_invalid",
+                        "Dem Backup fehlen Metadaten für die Offline-Karten.",
+                    )
+                return
+            filenames = {
+                str(row[0])
+                for row in conn.execute("SELECT filename FROM map_sources").fetchall()
+            }
+    except sqlite3.Error as exc:
+        raise BackupError(
+            "database_schema_invalid",
+            "Die Kartenmetadaten in der Backup-Datenbank sind ungültig.",
+        ) from exc
+    for filename in filenames:
+        if (
+            not filename
+            or Path(filename).name != filename
+            or re.fullmatch(r"[0-9a-f]{32}\.mbtiles", filename) is None
+        ):
+            raise BackupError(
+                "invalid_map_path",
+                "Die Backup-Datenbank enthält einen ungültigen Kartenpfad.",
+            )
+    if includes_maps:
+        archived = {path.name for path in _map_files(extracted_maps)}
+        if archived != filenames:
+            raise BackupError(
+                "maps_manifest_mismatch",
+                "Kartendateien und Kartenmetadaten im Backup stimmen nicht überein.",
+            )
+
+
 def _prepare_tree(source: Path, destination: Path) -> None:
     destination.mkdir(parents=True, exist_ok=False)
     if source.exists():
@@ -406,6 +496,8 @@ def restore_backup(
     config_dir: Path,
     media_dir: Path,
     safety_backup_dir: Path,
+    *,
+    maps_dir: Path | None = None,
 ) -> dict:
     staging_root = Path(tempfile.mkdtemp(prefix="panorama-restore-"))
     prepared: list[Path] = []
@@ -416,6 +508,24 @@ def restore_backup(
         manifest = validate_and_extract(archive_path, extracted)
         incoming_database = extracted / manifest["database_filename"]
         check_database(incoming_database)
+        check_map_sources(
+            incoming_database, extracted / "maps", manifest["includes_maps"]
+        )
+        if manifest["includes_maps"]:
+            if maps_dir is None:
+                raise BackupError(
+                    "maps_restore_unavailable",
+                    "Für diesen Restore ist kein Kartenverzeichnis konfiguriert.",
+                    500,
+                )
+            for map_path in _map_files(extracted / "maps"):
+                try:
+                    mbtiles.validate(map_path, map_path.stem)
+                except mbtiles.MBTilesError as exc:
+                    raise BackupError(
+                        "invalid_map_file",
+                        f"Ungültige MBTiles-Datei im Backup: {map_path.name}",
+                    ) from exc
         actual_media_count, actual_project_count = _database_counts(incoming_database)
         if actual_project_count != manifest["project_count"]:
             raise BackupError(
@@ -435,6 +545,8 @@ def restore_backup(
             True,
             safety_backup_dir,
             filename_prefix="pre-restore",
+            maps_dir=maps_dir,
+            includes_maps=True,
         )
 
         token = uuid.uuid4().hex
@@ -452,6 +564,12 @@ def restore_backup(
             _prepare_tree(extracted / "media", prepared_media)
             prepared.append(prepared_media)
 
+        prepared_maps = None
+        if manifest["includes_maps"]:
+            prepared_maps = maps_dir.parent / f".{maps_dir.name}.restore-{token}"
+            _prepare_tree(extracted / "maps", prepared_maps)
+            prepared.append(prepared_maps)
+
         rollback_root = staging_root / "rollback"
         rollback_root.mkdir()
         try:
@@ -459,6 +577,8 @@ def restore_backup(
             swaps.append(_swap_path(prepared_config, config_dir, rollback_root))
             if prepared_media is not None:
                 swaps.append(_swap_path(prepared_media, media_dir, rollback_root))
+            if prepared_maps is not None:
+                swaps.append(_swap_path(prepared_maps, maps_dir, rollback_root))
         except OSError:
             for target, old_path in reversed(swaps):
                 if target.exists():
