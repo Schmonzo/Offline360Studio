@@ -3,6 +3,7 @@
 
   const exportWithoutMediaBtn = document.getElementById('exportWithoutMediaBtn');
   const exportWithMediaBtn = document.getElementById('exportWithMediaBtn');
+  const includeMaps = document.getElementById('backupIncludeMaps');
   const restoreForm = document.getElementById('restoreForm');
   const backupFile = document.getElementById('backupFile');
   const backupFileName = document.getElementById('backupFileName');
@@ -52,7 +53,10 @@
       const response = await fetch('/api/backup/export', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ includes_media: includesMedia })
+        body: JSON.stringify({
+          includes_media: includesMedia,
+          includes_maps: includeMaps.checked
+        })
       });
       if (!response.ok) {
         const data = await response.json().catch(() => null);

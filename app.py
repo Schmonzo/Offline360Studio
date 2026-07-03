@@ -15,7 +15,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 from PIL import Image
 
-from core import backup
+from core import backup, gps, gpx, mbtiles
 
 BASE_DIR = Path(__file__).resolve().parent
 os.chdir(BASE_DIR)
@@ -27,6 +27,7 @@ PHOTO_DIR = MEDIA_DIR / "photos"
 VIDEO_DIR = MEDIA_DIR / "videos"
 THUMB_DIR = MEDIA_DIR / "thumbs"
 DB_PATH = DATA_DIR / "panorama_studio.db"
+MAPS_DIR = DATA_DIR / "maps"
 
 PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 VIDEO_EXTENSIONS = {".mp4", ".m4v", ".mov"}
@@ -57,7 +58,7 @@ class DatabaseConnection(sqlite3.Connection):
 
 
 def ensure_dirs() -> None:
-    for path in [DATA_DIR, CONFIG_DIR, PHOTO_DIR, VIDEO_DIR, THUMB_DIR]:
+    for path in [DATA_DIR, CONFIG_DIR, MAPS_DIR, PHOTO_DIR, VIDEO_DIR, THUMB_DIR]:
         path.mkdir(parents=True, exist_ok=True)
 
 
@@ -102,6 +103,12 @@ def init_db() -> None:
                 start_yaw REAL NULL,
                 start_pitch REAL NULL,
                 start_fov REAL NULL,
+                captured_at REAL NULL,
+                latitude REAL NULL,
+                longitude REAL NULL,
+                altitude REAL NULL,
+                gps_source TEXT NULL,
+                gps_updated_at REAL NULL,
                 created_at REAL,
                 updated_at REAL
             )
@@ -111,6 +118,12 @@ def init_db() -> None:
         ensure_column(conn, "media", "start_yaw", "REAL NULL")
         ensure_column(conn, "media", "start_pitch", "REAL NULL")
         ensure_column(conn, "media", "start_fov", "REAL NULL")
+        ensure_column(conn, "media", "captured_at", "REAL NULL")
+        ensure_column(conn, "media", "latitude", "REAL NULL")
+        ensure_column(conn, "media", "longitude", "REAL NULL")
+        ensure_column(conn, "media", "altitude", "REAL NULL")
+        ensure_column(conn, "media", "gps_source", "TEXT NULL")
+        ensure_column(conn, "media", "gps_updated_at", "REAL NULL")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS projects (
@@ -169,6 +182,132 @@ def init_db() -> None:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_hotspots_target_media_id ON hotspots(target_media_id)"
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gpx_tracks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                project_id INTEGER NULL,
+                original_filename TEXT NOT NULL,
+                imported_at REAL NOT NULL,
+                point_count INTEGER NOT NULL,
+                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gpx_points (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id INTEGER NOT NULL,
+                sequence INTEGER NOT NULL,
+                latitude REAL NOT NULL,
+                longitude REAL NOT NULL,
+                elevation REAL NULL,
+                recorded_at REAL NULL,
+                FOREIGN KEY (track_id) REFERENCES gpx_tracks(id) ON DELETE CASCADE
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_gpx_points_track_sequence
+            ON gpx_points(track_id, sequence)
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS map_sources (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL,
+                filename TEXT NOT NULL UNIQUE,
+                format TEXT NOT NULL,
+                map_type TEXT NOT NULL DEFAULT 'raster'
+                    CHECK (map_type IN ('raster', 'vector')),
+                schema_type TEXT NOT NULL DEFAULT 'flat'
+                    CHECK (schema_type IN ('flat', 'normalized')),
+                min_zoom INTEGER NULL,
+                max_zoom INTEGER NULL,
+                bounds TEXT NULL,
+                center TEXT NULL,
+                vector_layers TEXT NOT NULL DEFAULT '[]',
+                attribution TEXT DEFAULT '',
+                active INTEGER NOT NULL DEFAULT 0,
+                imported_at REAL NOT NULL
+            )
+            """
+        )
+        ensure_column(
+            conn,
+            "map_sources",
+            "schema_type",
+            "TEXT NOT NULL DEFAULT 'flat' "
+            "CHECK (schema_type IN ('flat', 'normalized'))",
+        )
+        ensure_column(
+            conn,
+            "map_sources",
+            "map_type",
+            "TEXT NOT NULL DEFAULT 'raster' "
+            "CHECK (map_type IN ('raster', 'vector'))",
+        )
+        raster_formats = ", ".join(
+            f"'{tile_format}'" for tile_format in sorted(mbtiles.RASTER_FORMATS)
+        )
+        vector_formats = ", ".join(
+            f"'{tile_format}'" for tile_format in sorted(mbtiles.VECTOR_FORMATS)
+        )
+        conn.execute(
+            f"""
+            UPDATE map_sources
+            SET map_type = CASE
+                WHEN lower(format) IN ({raster_formats}) THEN 'raster'
+                WHEN lower(format) IN ({vector_formats}) THEN 'vector'
+                ELSE map_type
+            END
+            """
+        )
+        ensure_column(conn, "map_sources", "center", "TEXT NULL")
+        ensure_column(
+            conn, "map_sources", "vector_layers", "TEXT NOT NULL DEFAULT '[]'"
+        )
+        conn.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_map_sources_single_active
+            ON map_sources(active) WHERE active = 1
+            """
+        )
+        for operation, clause in (
+            ("insert", "INSERT"),
+            (
+                "update",
+                "UPDATE OF latitude, longitude, altitude, gps_source",
+            ),
+        ):
+            conn.execute(
+                f"""
+                CREATE TRIGGER IF NOT EXISTS validate_media_gps_{operation}
+                BEFORE {clause} ON media
+                BEGIN
+                    SELECT CASE WHEN NEW.latitude IS NOT NULL AND (
+                        typeof(NEW.latitude) NOT IN ('real', 'integer')
+                        OR NEW.latitude < -90 OR NEW.latitude > 90
+                    ) THEN RAISE(ABORT, 'invalid latitude') END;
+                    SELECT CASE WHEN NEW.longitude IS NOT NULL AND (
+                        typeof(NEW.longitude) NOT IN ('real', 'integer')
+                        OR NEW.longitude < -180 OR NEW.longitude > 180
+                    ) THEN RAISE(ABORT, 'invalid longitude') END;
+                    SELECT CASE WHEN NEW.altitude IS NOT NULL AND (
+                        typeof(NEW.altitude) NOT IN ('real', 'integer')
+                        OR NEW.altitude < -1.7976931348623157e308
+                        OR NEW.altitude > 1.7976931348623157e308
+                    ) THEN RAISE(ABORT, 'invalid altitude') END;
+                    SELECT CASE WHEN NEW.gps_source IS NOT NULL
+                        AND NEW.gps_source NOT IN ('exif', 'gpx', 'manual')
+                    THEN RAISE(ABORT, 'invalid gps_source') END;
+                END
+                """
+            )
         conn.commit()
 
 
@@ -226,22 +365,81 @@ def scan_media() -> dict[str, Any]:
         for media_type, path in sorted(candidates, key=lambda x: str(x[1]).lower()):
             found += 1
             file_path = rel(path)
-            row = conn.execute("SELECT id, project FROM media WHERE file_path = ?", (file_path,)).fetchone()
+            row = conn.execute(
+                """
+                SELECT id, project, gps_source, latitude, longitude
+                FROM media WHERE file_path = ?
+                """,
+                (file_path,),
+            ).fetchone()
             thumb_path = create_photo_thumbnail(path) if media_type == "photo" else None
+            metadata = (
+                gps.read_photo_metadata(path)
+                if media_type == "photo" and path.suffix.lower() in {".jpg", ".jpeg"}
+                else {}
+            )
             if row:
                 conn.execute(
-                    "UPDATE media SET type=?, thumb_path=?, updated_at=? WHERE file_path=?",
-                    (media_type, thumb_path, now, file_path),
+                    """
+                    UPDATE media
+                    SET type = ?, thumb_path = ?,
+                        captured_at = COALESCE(?, captured_at), updated_at = ?
+                    WHERE file_path = ?
+                    """,
+                    (media_type, thumb_path, metadata.get("captured_at"), now, file_path),
                 )
+                if (
+                    metadata.get("latitude") is not None
+                    and metadata.get("longitude") is not None
+                    and (
+                        row["gps_source"] == "exif"
+                        or (
+                            row["gps_source"] is None
+                            and row["latitude"] is None
+                            and row["longitude"] is None
+                        )
+                    )
+                ):
+                    conn.execute(
+                        """
+                        UPDATE media
+                        SET latitude = ?, longitude = ?, altitude = ?,
+                            gps_source = 'exif', gps_updated_at = ?
+                        WHERE id = ?
+                        """,
+                        (
+                            metadata["latitude"],
+                            metadata["longitude"],
+                            metadata.get("altitude"),
+                            now,
+                            row["id"],
+                        ),
+                    )
                 updated += 1
             else:
                 conn.execute(
                     """
                     INSERT INTO media
-                    (type, file_path, thumb_path, title, project, category, description, favorite, visible, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, '', '', 0, 1, ?, ?)
+                    (type, file_path, thumb_path, title, project, category, description,
+                     favorite, visible, captured_at, latitude, longitude, altitude,
+                     gps_source, gps_updated_at, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, '', '', 0, 1, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (media_type, file_path, thumb_path, make_title(path), infer_project(path, media_type), now, now),
+                    (
+                        media_type,
+                        file_path,
+                        thumb_path,
+                        make_title(path),
+                        infer_project(path, media_type),
+                        metadata.get("captured_at"),
+                        metadata.get("latitude"),
+                        metadata.get("longitude"),
+                        metadata.get("altitude"),
+                        metadata.get("gps_source"),
+                        now if metadata.get("gps_source") else None,
+                        now,
+                        now,
+                    ),
                 )
                 inserted += 1
         conn.commit()
@@ -257,7 +455,8 @@ def media_rows(include_hidden: bool = True) -> list[dict[str, Any]]:
             f"""
             SELECT id, type, file_path, thumb_path, title, project, category, description,
                    favorite, visible, start_yaw, start_pitch, start_fov,
-                   created_at, updated_at
+                   captured_at, latitude, longitude, altitude, gps_source,
+                   gps_updated_at, created_at, updated_at
             FROM media
             {where}
             ORDER BY project COLLATE NOCASE, favorite DESC, title COLLATE NOCASE
@@ -284,6 +483,27 @@ def stats_payload() -> dict[str, Any]:
 
 def api_error(code: str, message: str, status: int):
     return jsonify({"error": {"code": code, "message": message}}), status
+
+
+def map_source_payload(row: sqlite3.Row) -> dict[str, Any]:
+    item = dict(row)
+    item["active"] = bool(item["active"])
+    item["source_id"] = item["id"]
+    item["map_type"] = mbtiles.validated_map_type(
+        item.get("map_type"), item.get("format")
+    )
+    item["vector_layers"] = mbtiles.deserialize_vector_layers(
+        item.get("vector_layers")
+    )
+    item["style_available"] = (
+        item["map_type"] == "vector" and bool(item["vector_layers"])
+    )
+    try:
+        path = mbtiles.source_path(MAPS_DIR, item["filename"])
+        item["file_size"] = path.stat().st_size if path.is_file() else None
+    except (mbtiles.MBTilesError, OSError):
+        item["file_size"] = None
+    return item
 
 
 @app.errorhandler(RequestEntityTooLarge)
@@ -622,6 +842,146 @@ def index():
 @app.route("/api/media")
 def api_media():
     return jsonify({"items": media_rows(), "stats": stats_payload()})
+
+
+def parse_optional_project_id(value: Any):
+    if value in (None, ""):
+        return None, None
+    try:
+        if isinstance(value, bool) or not isinstance(value, (int, str)):
+            raise ValueError
+        project_id = int(value)
+        if isinstance(value, str) and str(project_id) != value.strip():
+            raise ValueError
+    except (TypeError, ValueError):
+        return None, api_error(
+            "invalid_project_id",
+            "project_id muss eine Projekt-ID oder null sein.",
+            400,
+        )
+    if project_id <= 0:
+        return None, api_error(
+            "invalid_project_id",
+            "project_id muss eine positive Projekt-ID sein.",
+            400,
+        )
+    return project_id, None
+
+
+@app.route("/api/media/<int:media_id>/gps", methods=["PATCH", "DELETE"])
+def api_media_gps(media_id: int):
+    init_db()
+    with db() as conn:
+        row = conn.execute("SELECT id FROM media WHERE id = ?", (media_id,)).fetchone()
+        if row is None:
+            return api_error("media_not_found", "Das Medium wurde nicht gefunden.", 404)
+        now = time.time()
+        if request.method == "DELETE":
+            conn.execute(
+                """
+                UPDATE media
+                SET latitude = NULL, longitude = NULL, altitude = NULL,
+                    gps_source = NULL, gps_updated_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (now, now, media_id),
+            )
+            item = {
+                "id": media_id,
+                "latitude": None,
+                "longitude": None,
+                "altitude": None,
+                "gps_source": None,
+                "gps_updated_at": now,
+            }
+        else:
+            payload = request.get_json(silent=True)
+            if not isinstance(payload, dict):
+                return api_error(
+                    "invalid_json",
+                    "Der Request-Body muss ein JSON-Objekt sein.",
+                    400,
+                )
+            unknown = set(payload) - {"latitude", "longitude", "altitude", "gps_source"}
+            if unknown:
+                return api_error(
+                    "invalid_field",
+                    "Unbekannte GPS-Felder: " + ", ".join(sorted(unknown)),
+                    400,
+                )
+            if "latitude" not in payload or "longitude" not in payload:
+                return api_error(
+                    "missing_coordinates",
+                    "latitude und longitude müssen angegeben werden.",
+                    400,
+                )
+            source = payload.get("gps_source", "manual")
+            if source != "manual":
+                return api_error(
+                    "invalid_gps_source",
+                    "Manuell gespeicherte Positionen müssen gps_source 'manual' verwenden.",
+                    400,
+                )
+            try:
+                values = gps.validate_gps(
+                    payload["latitude"],
+                    payload["longitude"],
+                    payload.get("altitude"),
+                    source,
+                )
+            except (TypeError, ValueError):
+                return api_error(
+                    "invalid_gps",
+                    "Koordinaten und Höhe müssen endlich und im gültigen Bereich sein.",
+                    400,
+                )
+            conn.execute(
+                """
+                UPDATE media
+                SET latitude = ?, longitude = ?, altitude = ?,
+                    gps_source = ?, gps_updated_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    values["latitude"],
+                    values["longitude"],
+                    values["altitude"],
+                    values["gps_source"],
+                    now,
+                    now,
+                    media_id,
+                ),
+            )
+            item = {"id": media_id, **values, "gps_updated_at": now}
+        conn.commit()
+    return jsonify({"status": "ok", "item": item})
+
+
+@app.route("/api/map/media")
+def api_map_media():
+    init_db()
+    project_id, error = parse_optional_project_id(request.args.get("project_id"))
+    if error:
+        return error
+    query = """
+        SELECT DISTINCT m.id, m.type, m.file_path, m.thumb_path, m.title,
+               m.project, m.category, m.latitude, m.longitude, m.altitude,
+               m.gps_source
+        FROM media m
+    """
+    parameters: tuple[Any, ...] = ()
+    if project_id is not None:
+        query += " JOIN project_media pm ON pm.media_id = m.id AND pm.project_id = ?"
+        parameters = (project_id,)
+    query += """
+        WHERE m.visible = 1
+          AND m.latitude BETWEEN -90 AND 90
+          AND m.longitude BETWEEN -180 AND 180
+        ORDER BY m.id
+    """
+    with db() as conn:
+        rows = conn.execute(query, parameters).fetchall()
+    return jsonify({"items": [dict(row) for row in rows]})
 
 
 @app.route("/api/projects", methods=["GET", "POST"])
@@ -1173,13 +1533,458 @@ def api_rescan():
     return jsonify({"status": "ok", **result, "stats": stats_payload()})
 
 
+@app.route("/api/gpx/import", methods=["POST"])
+def api_gpx_import():
+    uploaded = request.files.get("file")
+    if uploaded is None or not uploaded.filename:
+        return api_error("gpx_file_missing", "Bitte eine GPX-Datei auswählen.", 400)
+    if Path(uploaded.filename).suffix.lower() != ".gpx":
+        return api_error(
+            "invalid_file_type",
+            "Es werden nur GPX-Dateien mit der Endung .gpx akzeptiert.",
+            415,
+        )
+    safe_name = secure_filename(Path(uploaded.filename).name)
+    if not safe_name:
+        return api_error("invalid_filename", "Der GPX-Dateiname ist ungültig.", 400)
+    project_id, error = parse_optional_project_id(request.form.get("project_id"))
+    if error:
+        return error
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="panorama-gpx-") as temporary_dir:
+            upload_path = Path(temporary_dir) / "track.gpx"
+            gpx.save_upload(uploaded.stream, upload_path)
+            parsed = gpx.parse_gpx(upload_path)
+        with db() as conn:
+            if project_id is not None and project_row(conn, project_id) is None:
+                return api_error(
+                    "project_not_found",
+                    "Das Projekt wurde nicht gefunden.",
+                    404,
+                )
+            item = gpx.import_track(conn, parsed, safe_name, project_id)
+            conn.commit()
+        return jsonify({"item": item}), 201
+    except gpx.GpxError as exc:
+        return api_error(exc.code, exc.message, exc.status)
+    except sqlite3.Error:
+        app.logger.exception("GPX-Import fehlgeschlagen")
+        return api_error(
+            "gpx_import_failed",
+            "Der GPX-Track konnte nicht importiert werden.",
+            500,
+        )
+    except Exception:
+        app.logger.exception("Unerwarteter Fehler beim GPX-Import")
+        return api_error(
+            "gpx_import_failed",
+            "Der GPX-Track konnte nicht importiert werden.",
+            500,
+        )
+
+
+@app.route("/api/gpx/tracks")
+def api_gpx_tracks():
+    init_db()
+    project_id, error = parse_optional_project_id(request.args.get("project_id"))
+    if error:
+        return error
+    query = """
+        SELECT id, name, project_id, original_filename, imported_at, point_count
+        FROM gpx_tracks
+    """
+    parameters: tuple[Any, ...] = ()
+    if project_id is not None:
+        query += " WHERE project_id = ?"
+        parameters = (project_id,)
+    query += " ORDER BY imported_at, id"
+    with db() as conn:
+        rows = conn.execute(query, parameters).fetchall()
+    return jsonify({"items": [dict(row) for row in rows]})
+
+
+@app.route("/api/gpx/tracks/<int:track_id>", methods=["GET", "DELETE"])
+def api_gpx_track(track_id: int):
+    init_db()
+    with db() as conn:
+        row = conn.execute(
+            """
+            SELECT id, name, project_id, original_filename, imported_at, point_count
+            FROM gpx_tracks WHERE id = ?
+            """,
+            (track_id,),
+        ).fetchone()
+        if row is None:
+            return api_error("track_not_found", "Der GPX-Track wurde nicht gefunden.", 404)
+        if request.method == "DELETE":
+            conn.execute("DELETE FROM gpx_tracks WHERE id = ?", (track_id,))
+            conn.commit()
+            return jsonify({"status": "ok", "id": track_id})
+        points = conn.execute(
+            """
+            SELECT sequence, latitude, longitude, elevation, recorded_at
+            FROM gpx_points WHERE track_id = ? ORDER BY sequence
+            """,
+            (track_id,),
+        ).fetchall()
+    item = dict(row)
+    item["points"] = [dict(point) for point in points]
+    return jsonify({"item": item})
+
+
+@app.route("/api/gpx/tracks/<int:track_id>/match-media", methods=["POST"])
+def api_gpx_match_media(track_id: int):
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return api_error(
+            "invalid_json",
+            "Der Request-Body muss ein JSON-Objekt sein.",
+            400,
+        )
+    unknown = set(payload) - {"max_time_difference_seconds", "project_id"}
+    if unknown:
+        return api_error(
+            "invalid_field",
+            "Unbekannte Zuordnungsfelder: " + ", ".join(sorted(unknown)),
+            400,
+        )
+    difference = payload.get("max_time_difference_seconds", 300)
+    if (
+        isinstance(difference, bool)
+        or not isinstance(difference, (int, float))
+        or not math.isfinite(float(difference))
+        or not 0 <= float(difference) <= 86_400
+    ):
+        return api_error(
+            "invalid_time_difference",
+            "max_time_difference_seconds muss zwischen 0 und 86400 liegen.",
+            400,
+        )
+    project_id, error = parse_optional_project_id(payload.get("project_id"))
+    if error:
+        return error
+    with db() as conn:
+        if conn.execute(
+            "SELECT id FROM gpx_tracks WHERE id = ?", (track_id,)
+        ).fetchone() is None:
+            return api_error("track_not_found", "Der GPX-Track wurde nicht gefunden.", 404)
+        if project_id is not None and project_row(conn, project_id) is None:
+            return api_error("project_not_found", "Das Projekt wurde nicht gefunden.", 404)
+        result = gpx.match_media(conn, track_id, float(difference), project_id)
+        conn.commit()
+    return jsonify(result)
+
+
+@app.route("/api/maps/sources")
+def api_map_sources():
+    init_db()
+    with db() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, name, filename, format, map_type, schema_type,
+                   min_zoom, max_zoom, bounds, center, vector_layers,
+                   attribution, active, imported_at
+            FROM map_sources ORDER BY active DESC, name COLLATE NOCASE, id
+            """
+        ).fetchall()
+    return jsonify({"items": [map_source_payload(row) for row in rows]})
+
+
+@app.route("/api/maps/sources/import", methods=["POST"])
+def api_map_source_import():
+    uploaded = request.files.get("file")
+    if uploaded is None or not uploaded.filename:
+        return api_error(
+            "map_file_missing", "Bitte eine MBTiles-Datei auswählen.", 400
+        )
+    if Path(uploaded.filename).suffix.lower() != ".mbtiles":
+        return api_error(
+            "invalid_file_type", "Es werden nur .mbtiles-Dateien akzeptiert.", 415
+        )
+    stored_path: Path | None = None
+    try:
+        with DATA_OPERATION_LOCK:
+            init_db()
+            filename, metadata = mbtiles.import_upload(
+                uploaded.stream, MAPS_DIR, uploaded.filename
+            )
+            stored_path = mbtiles.source_path(MAPS_DIR, filename)
+            with db() as conn:
+                source_id = conn.execute(
+                    """
+                    INSERT INTO map_sources
+                    (name, filename, format, map_type, schema_type,
+                     min_zoom, max_zoom, bounds, center, vector_layers,
+                     attribution, active, imported_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
+                    """,
+                    (
+                        metadata.name,
+                        filename,
+                        metadata.format,
+                        metadata.map_type,
+                        metadata.schema_type,
+                        metadata.min_zoom,
+                        metadata.max_zoom,
+                        metadata.bounds,
+                        metadata.center,
+                        mbtiles.serialize_vector_layers(metadata.vector_layers),
+                        metadata.attribution,
+                        time.time(),
+                    ),
+                ).lastrowid
+                row = conn.execute(
+                    """
+                    SELECT id, name, filename, format, map_type, schema_type,
+                           min_zoom, max_zoom, bounds, center, vector_layers,
+                           attribution, active, imported_at
+                    FROM map_sources WHERE id = ?
+                    """,
+                    (source_id,),
+                ).fetchone()
+                conn.commit()
+        return jsonify({"item": map_source_payload(row)}), 201
+    except mbtiles.MBTilesError as exc:
+        return api_error(exc.code, exc.message, exc.status)
+    except Exception:
+        if stored_path is not None:
+            stored_path.unlink(missing_ok=True)
+        app.logger.exception("Unerwarteter Fehler beim MBTiles-Import")
+        return api_error(
+            "map_import_failed", "Die Kartenquelle konnte nicht importiert werden.", 500
+        )
+
+
+@app.route("/api/maps/sources/<int:source_id>", methods=["PATCH"])
+def api_map_source_update(source_id: int):
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return api_error(
+            "invalid_json", "Der Request-Body muss ein JSON-Objekt sein.", 400
+        )
+    if set(payload) - {"name", "active"}:
+        return api_error(
+            "invalid_field", "Erlaubt sind nur name und active.", 400
+        )
+    if not payload:
+        return api_error("invalid_request", "Es wurde keine Änderung angegeben.", 400)
+    name = payload.get("name")
+    if name is not None and (
+        not isinstance(name, str) or not name.strip() or len(name.strip()) > 200
+    ):
+        return api_error(
+            "invalid_name", "Der Name muss 1 bis 200 Zeichen lang sein.", 400
+        )
+    active = payload.get("active")
+    if active is not None and type(active) is not bool:
+        return api_error("invalid_active", "active muss ein Boolean sein.", 400)
+    init_db()
+    with db() as conn:
+        if conn.execute(
+            "SELECT id FROM map_sources WHERE id = ?", (source_id,)
+        ).fetchone() is None:
+            return api_error(
+                "map_source_not_found", "Die Kartenquelle wurde nicht gefunden.", 404
+            )
+        if active is True:
+            conn.execute("UPDATE map_sources SET active = 0 WHERE active = 1")
+        assignments = []
+        values: list[Any] = []
+        if name is not None:
+            assignments.append("name = ?")
+            values.append(name.strip())
+        if active is not None:
+            assignments.append("active = ?")
+            values.append(int(active))
+        conn.execute(
+            f"UPDATE map_sources SET {', '.join(assignments)} WHERE id = ?",
+            (*values, source_id),
+        )
+        row = conn.execute(
+            """
+            SELECT id, name, filename, format, map_type, schema_type,
+                   min_zoom, max_zoom, bounds, center, vector_layers,
+                   attribution, active, imported_at
+            FROM map_sources WHERE id = ?
+            """,
+            (source_id,),
+        ).fetchone()
+        conn.commit()
+    return jsonify({"item": map_source_payload(row)})
+
+
+@app.route("/api/maps/sources/<int:source_id>", methods=["DELETE"])
+def api_map_source_delete(source_id: int):
+    init_db()
+    try:
+        with db() as conn:
+            row = conn.execute(
+                "SELECT filename FROM map_sources WHERE id = ?", (source_id,)
+            ).fetchone()
+            if row is None:
+                return api_error(
+                    "map_source_not_found", "Die Kartenquelle wurde nicht gefunden.", 404
+                )
+            path = mbtiles.source_path(MAPS_DIR, row["filename"])
+            if path.exists():
+                path.unlink()
+            conn.execute("DELETE FROM map_sources WHERE id = ?", (source_id,))
+            conn.commit()
+    except mbtiles.MBTilesError as exc:
+        return api_error(exc.code, exc.message, exc.status)
+    except OSError:
+        app.logger.exception("MBTiles-Datei konnte nicht gelöscht werden")
+        return api_error(
+            "map_delete_failed",
+            "Die MBTiles-Datei konnte nicht gelöscht werden.",
+            500,
+        )
+    return jsonify({"status": "ok"})
+
+
+@app.route("/api/maps/active", methods=["GET", "PATCH"])
+def api_map_active():
+    init_db()
+    if request.method == "PATCH":
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return api_error(
+                "invalid_json", "Der Request-Body muss ein JSON-Objekt sein.", 400
+            )
+        if set(payload) != {"source_id"}:
+            return api_error(
+                "invalid_field", "Erlaubt ist nur source_id.", 400
+            )
+        source_id = payload["source_id"]
+        if source_id is not None and (
+            type(source_id) is not int or source_id <= 0
+        ):
+            return api_error(
+                "invalid_source_id",
+                "source_id muss eine positive Ganzzahl oder null sein.",
+                400,
+            )
+        with db() as conn:
+            if source_id is not None and conn.execute(
+                "SELECT id FROM map_sources WHERE id = ?", (source_id,)
+            ).fetchone() is None:
+                return api_error(
+                    "map_source_not_found",
+                    "Die Kartenquelle wurde nicht gefunden.",
+                    404,
+                )
+            conn.execute("UPDATE map_sources SET active = 0 WHERE active = 1")
+            if source_id is not None:
+                conn.execute(
+                    "UPDATE map_sources SET active = 1 WHERE id = ?", (source_id,)
+                )
+            conn.commit()
+    with db() as conn:
+        row = conn.execute(
+            """
+            SELECT id, name, filename, format, map_type, schema_type,
+                   min_zoom, max_zoom, bounds, center, vector_layers,
+                   attribution, active, imported_at
+            FROM map_sources WHERE active = 1
+            """
+        ).fetchone()
+    return jsonify({"item": map_source_payload(row) if row is not None else None})
+
+
+@app.route("/api/maps/sources/<int:source_id>/style.json")
+def api_map_source_style(source_id: int):
+    init_db()
+    with db() as conn:
+        row = conn.execute(
+            """
+            SELECT id, name, format, map_type, min_zoom, max_zoom,
+                   bounds, center, vector_layers
+            FROM map_sources WHERE id = ?
+            """,
+            (source_id,),
+        ).fetchone()
+    if row is None:
+        return api_error(
+            "map_source_not_found", "Die Kartenquelle wurde nicht gefunden.", 404
+        )
+    if row["map_type"] != "vector":
+        return api_error(
+            "map_style_unavailable",
+            "Für Raster-MBTiles ist kein MapLibre-Style verfügbar.",
+            415,
+        )
+    response = jsonify(mbtiles.generate_style(source_id, dict(row)))
+    response.headers["Cache-Control"] = "no-cache"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@app.route("/api/maps/tiles/<int:source_id>/<int:z>/<int:x>/<int:y>")
+def api_map_tile(source_id: int, z: int, x: int, y: int):
+    if z < 0 or z > 30 or x < 0 or y < 0 or x >= 2**z or y >= 2**z:
+        return api_error("tile_not_found", "Die Kartenkachel wurde nicht gefunden.", 404)
+    init_db()
+    with db() as conn:
+        row = conn.execute(
+            """
+            SELECT filename, format, map_type, schema_type
+            FROM map_sources WHERE id = ?
+            """,
+            (source_id,),
+        ).fetchone()
+    if row is None:
+        return api_error(
+            "map_source_not_found", "Die Kartenquelle wurde nicht gefunden.", 404
+        )
+    try:
+        path = mbtiles.source_path(MAPS_DIR, row["filename"])
+        if not path.is_file():
+            return api_error(
+                "map_file_missing", "Die lokale Kartendatei wurde nicht gefunden.", 404
+            )
+        tile = mbtiles.read_tile(path, z, x, y, row["schema_type"])
+    except mbtiles.MBTilesError as exc:
+        return api_error(exc.code, exc.message, exc.status)
+    if tile is None:
+        return api_error("tile_not_found", "Die Kartenkachel wurde nicht gefunden.", 404)
+    content_type = mbtiles.CONTENT_TYPES.get(row["format"])
+    if content_type is None:
+        return api_error(
+            "map_format_unsupported",
+            "Das Format der Kartenquelle wird nicht unterstützt.",
+            415,
+        )
+    headers = {
+        "Cache-Control": "public, max-age=86400",
+        "X-Content-Type-Options": "nosniff",
+    }
+    if row["map_type"] == "vector" or row["format"] in mbtiles.VECTOR_FORMATS:
+        try:
+            encoding = mbtiles.vector_tile_encoding(tile)
+        except mbtiles.MBTilesError as exc:
+            return api_error(exc.code, exc.message, exc.status)
+        if encoding is not None:
+            headers["Content-Encoding"] = encoding
+    return Response(
+        tile,
+        mimetype=content_type,
+        headers=headers,
+    )
+
+
 @app.route("/api/backup/export", methods=["POST"])
 def api_backup_export():
     payload = request.get_json(silent=True)
-    if not isinstance(payload, dict) or type(payload.get("includes_media")) is not bool:
+    if (
+        not isinstance(payload, dict)
+        or type(payload.get("includes_media")) is not bool
+        or type(payload.get("includes_maps", False)) is not bool
+        or set(payload) - {"includes_media", "includes_maps"}
+    ):
         return api_error(
             "invalid_request",
-            "includes_media muss als Boolean angegeben werden.",
+            "includes_media und includes_maps müssen als Boolean angegeben werden.",
             400,
         )
 
@@ -1193,6 +1998,8 @@ def api_backup_export():
                 MEDIA_DIR,
                 payload["includes_media"],
                 Path(temporary_dir.name),
+                maps_dir=MAPS_DIR,
+                includes_maps=payload.get("includes_maps", False),
             )
 
         def stream_archive():
@@ -1247,6 +2054,7 @@ def api_backup_import():
                     CONFIG_DIR,
                     MEDIA_DIR,
                     DATA_DIR / "backups",
+                    maps_dir=MAPS_DIR,
                 )
             return jsonify(result)
         except backup.BackupError as exc:

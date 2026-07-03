@@ -30,6 +30,7 @@ class BackupApiTests(unittest.TestCase):
             VIDEO_DIR=media_dir / "videos",
             THUMB_DIR=media_dir / "thumbs",
             DB_PATH=data_dir / "panorama_studio.db",
+            MAPS_DIR=data_dir / "maps",
         )
         self.path_patch.start()
         panorama_app.app.config.update(TESTING=True)
@@ -61,9 +62,13 @@ class BackupApiTests(unittest.TestCase):
         self.path_patch.stop()
         self.temp_dir.cleanup()
 
-    def export_backup(self, includes_media: bool) -> bytes:
+    def export_backup(self, includes_media: bool, includes_maps: bool = False) -> bytes:
         response = self.client.post(
-            "/api/backup/export", json={"includes_media": includes_media}
+            "/api/backup/export",
+            json={
+                "includes_media": includes_media,
+                "includes_maps": includes_maps,
+            },
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.mimetype, "application/zip")
@@ -123,6 +128,7 @@ class BackupApiTests(unittest.TestCase):
                     "backup_version",
                     "created_at",
                     "includes_media",
+                    "includes_maps",
                     "database_filename",
                     "media_count",
                     "project_count",
@@ -132,6 +138,7 @@ class BackupApiTests(unittest.TestCase):
             self.assertEqual(manifest["app_version"], "0.3.1")
             self.assertEqual(manifest["backup_version"], 1)
             self.assertFalse(manifest["includes_media"])
+            self.assertFalse(manifest["includes_maps"])
             self.assertEqual(manifest["database_filename"], "panorama_studio.db")
             self.assertEqual(manifest["media_count"], 1)
             self.assertEqual(manifest["project_count"], 1)
@@ -145,6 +152,116 @@ class BackupApiTests(unittest.TestCase):
             self.assertIn("media/videos/clip.mp4", names)
             self.assertTrue(manifest["includes_media"])
             self.assertEqual(manifest["media_count"], 1)
+
+    def test_backup_with_and_without_offline_maps_and_restore(self) -> None:
+        filename = "0123456789abcdef0123456789abcdef.mbtiles"
+        map_path = panorama_app.MAPS_DIR / filename
+        with closing(sqlite3.connect(map_path)) as conn:
+            conn.execute("CREATE TABLE metadata (name TEXT, value TEXT)")
+            conn.execute(
+                """
+                CREATE TABLE tiles (
+                    zoom_level INTEGER, tile_column INTEGER,
+                    tile_row INTEGER, tile_data BLOB
+                )
+                """
+            )
+            conn.executemany(
+                "INSERT INTO metadata VALUES (?, ?)",
+                [
+                    ("name", "Testkarte"),
+                    ("format", "pbf"),
+                    ("type", "baselayer"),
+                    ("json", '{"vector_layers":[{"id":"test","fields":{}}]}'),
+                ],
+            )
+            conn.execute(
+                "INSERT INTO tiles VALUES (0, 0, 0, ?)",
+                (b"\x1a\x0b\x0a\x04test\x28\x80\x20\x78\x02",),
+            )
+            conn.commit()
+        with panorama_app.db() as conn:
+            conn.execute(
+                """
+                INSERT INTO map_sources
+                (name, filename, format, map_type, min_zoom, max_zoom,
+                 vector_layers, active, imported_at)
+                VALUES ('Testkarte', ?, 'pbf', 'vector', 0, 0,
+                        '[{"id":"test","fields":{}}]', 1, 1)
+                """,
+                (filename,),
+            )
+            conn.commit()
+
+        without_maps = self.export_backup(False, False)
+        with zipfile.ZipFile(io.BytesIO(without_maps)) as archive:
+            self.assertFalse(json.loads(archive.read("manifest.json"))["includes_maps"])
+            self.assertFalse(any(name.startswith("maps/") for name in archive.namelist()))
+
+        with_maps = self.export_backup(False, True)
+        with zipfile.ZipFile(io.BytesIO(with_maps)) as archive:
+            self.assertTrue(json.loads(archive.read("manifest.json"))["includes_maps"])
+            self.assertIn(f"maps/{filename}", archive.namelist())
+
+        map_path.unlink()
+        with panorama_app.db() as conn:
+            conn.execute("DELETE FROM map_sources")
+            conn.commit()
+        response = self.import_backup(with_maps)
+        self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
+        self.assertEqual(map_path.read_bytes()[:16], b"SQLite format 3\x00")
+        with panorama_app.db() as conn:
+            self.assertEqual(
+                tuple(
+                    conn.execute(
+                        "SELECT name, active, map_type FROM map_sources"
+                    ).fetchone()
+                ),
+                ("Testkarte", 1, "vector"),
+            )
+
+    def test_export_database_contains_gps_and_gpx_data(self) -> None:
+        with panorama_app.db() as conn:
+            conn.execute(
+                """
+                UPDATE media SET latitude=46.5, longitude=7.5, altitude=1200,
+                                 gps_source='manual', gps_updated_at=2
+                """
+            )
+            track_id = conn.execute(
+                """
+                INSERT INTO gpx_tracks
+                (name, project_id, original_filename, imported_at, point_count)
+                VALUES ('Track', 1, 'track.gpx', 2, 1)
+                """
+            ).lastrowid
+            conn.execute(
+                """
+                INSERT INTO gpx_points
+                (track_id, sequence, latitude, longitude, elevation, recorded_at)
+                VALUES (?, 0, 46.5, 7.5, 1200, 3)
+                """,
+                (track_id,),
+            )
+            conn.commit()
+
+        content = self.export_backup(False)
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            database_bytes = archive.read("panorama_studio.db")
+        database_copy = Path(self.temp_dir.name) / "gps-gpx-backup.db"
+        database_copy.write_bytes(database_bytes)
+        with closing(sqlite3.connect(database_copy)) as conn:
+            self.assertEqual(
+                conn.execute(
+                    "SELECT latitude, longitude, gps_source FROM media"
+                ).fetchone(),
+                (46.5, 7.5, "manual"),
+            )
+            self.assertEqual(
+                conn.execute("SELECT name, point_count FROM gpx_tracks").fetchone(),
+                ("Track", 1),
+            )
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM gpx_points").fetchone()[0], 1)
 
     def test_restore_replaces_database_and_creates_full_safety_backup(self) -> None:
         original = self.export_backup(False)
