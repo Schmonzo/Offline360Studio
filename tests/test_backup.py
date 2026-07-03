@@ -146,6 +146,49 @@ class BackupApiTests(unittest.TestCase):
             self.assertTrue(manifest["includes_media"])
             self.assertEqual(manifest["media_count"], 1)
 
+    def test_export_database_contains_gps_and_gpx_data(self) -> None:
+        with panorama_app.db() as conn:
+            conn.execute(
+                """
+                UPDATE media SET latitude=46.5, longitude=7.5, altitude=1200,
+                                 gps_source='manual', gps_updated_at=2
+                """
+            )
+            track_id = conn.execute(
+                """
+                INSERT INTO gpx_tracks
+                (name, project_id, original_filename, imported_at, point_count)
+                VALUES ('Track', 1, 'track.gpx', 2, 1)
+                """
+            ).lastrowid
+            conn.execute(
+                """
+                INSERT INTO gpx_points
+                (track_id, sequence, latitude, longitude, elevation, recorded_at)
+                VALUES (?, 0, 46.5, 7.5, 1200, 3)
+                """,
+                (track_id,),
+            )
+            conn.commit()
+
+        content = self.export_backup(False)
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            database_bytes = archive.read("panorama_studio.db")
+        database_copy = Path(self.temp_dir.name) / "gps-gpx-backup.db"
+        database_copy.write_bytes(database_bytes)
+        with closing(sqlite3.connect(database_copy)) as conn:
+            self.assertEqual(
+                conn.execute(
+                    "SELECT latitude, longitude, gps_source FROM media"
+                ).fetchone(),
+                (46.5, 7.5, "manual"),
+            )
+            self.assertEqual(
+                conn.execute("SELECT name, point_count FROM gpx_tracks").fetchone(),
+                ("Track", 1),
+            )
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM gpx_points").fetchone()[0], 1)
+
     def test_restore_replaces_database_and_creates_full_safety_backup(self) -> None:
         original = self.export_backup(False)
         with panorama_app.db() as conn:

@@ -103,6 +103,7 @@ async function loadProjects() {
     projectsLoaded = true;
     renderProjectSelectors();
     restoreStoredTour();
+    window.mapUi?.onProjectChanged();
   } catch (error) {
     setProjectError(error.message);
   }
@@ -216,6 +217,7 @@ async function selectTour(projectId, options = {}) {
     renderProjectSelectors();
     updateTourNavigation();
     renderGallery();
+    window.mapUi?.onProjectChanged();
     return;
   }
   try {
@@ -225,6 +227,7 @@ async function selectTour(projectId, options = {}) {
     projectFilter.disabled = true;
     renderProjectSelectors();
     renderGallery();
+    window.mapUi?.onProjectChanged();
     const items = visibleTourItems();
     const restoredIndex = options.mediaId
       ? items.findIndex(item => String(item.id) === String(options.mediaId))
@@ -245,6 +248,7 @@ async function selectTour(projectId, options = {}) {
     showNavigationMessage(error.message);
     renderProjectSelectors();
     renderGallery();
+    window.mapUi?.onProjectChanged();
   }
 }
 
@@ -384,6 +388,7 @@ function updateProjectState(project) {
   }
   renderProjectSelectors();
   renderProjectEditor();
+  window.mapUi?.onProjectChanged();
 }
 
 async function saveProject(event) {
@@ -436,6 +441,7 @@ async function deleteProject() {
     }
     renderProjectSelectors();
     renderProjectEditor();
+    window.mapUi?.onProjectChanged();
   } catch (error) {
     setProjectError(error.message);
   } finally {
@@ -572,6 +578,9 @@ window.projectUi = {
   getTourItems: canonicalTourItems,
   getTourName() {
     return activeTour?.name || '';
+  },
+  getActiveProjectId() {
+    return activeTour?.id || null;
   },
   isTourActive() {
     return !!activeTour;
