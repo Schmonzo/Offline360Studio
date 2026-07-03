@@ -25,9 +25,11 @@ async function loadMedia() {
   mediaItems = data.items || [];
   window.hotspotAdmin?.setMediaItems(mediaItems);
   window.projectUi?.setMediaItems(mediaItems);
+  window.mapUi?.setMediaItems(mediaItems);
   if (selectedItem) {
     selectedItem = mediaItems.find(item => item.id === selectedItem.id) || null;
     window.hotspotAdmin?.setCurrentItem(selectedItem);
+    window.mapUi?.setCurrentItem(selectedItem);
   }
   stats = data.stats || null;
   updateStats();
@@ -165,10 +167,18 @@ function renderGallery() {
 function selectItem(item) {
   selectedItem = item;
   window.hotspotAdmin?.setCurrentItem(item);
+  window.mapUi?.setCurrentItem(item);
   window.projectUi?.onMediaSelected(item);
   fillForm(item);
   renderGallery();
   loadViewer(item);
+}
+
+function selectMediaById(mediaId) {
+  const item = mediaItems.find(candidate => String(candidate.id) === String(mediaId));
+  if (!item || !item.visible) return false;
+  selectItem(item);
+  return true;
 }
 
 function showNavigationMessage(message) {
@@ -206,6 +216,8 @@ function openMediaById(mediaId) {
 }
 
 window.openMediaById = openMediaById;
+window.selectMediaById = selectMediaById;
+window.reloadMedia = loadMedia;
 window.viewerControls?.setPanoramaNavigationCallback(openMediaById);
 
 function fillForm(item) {
