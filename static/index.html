@@ -164,8 +164,42 @@
       <button type="submit">Speichern</button>
     </form>
 
+    <section class="backup-admin" aria-labelledby="backupTitle">
+      <h3 id="backupTitle">Backup &amp; Restore</h3>
+      <p>Projekte, Zuordnungen, Hotspots, Startansichten und Einstellungen lokal als ZIP sichern.</p>
+      <div class="backup-actions">
+        <button id="exportWithoutMediaBtn" type="button">Backup ohne Medien</button>
+        <button id="exportWithMediaBtn" type="button">Backup mit Medien</button>
+      </div>
+      <form id="restoreForm" class="restore-form">
+        <label for="backupFile">ZIP-Backup auswählen
+          <input id="backupFile" name="file" type="file" accept=".zip,application/zip" required />
+        </label>
+        <p id="backupFileName" class="backup-file-name">Keine Datei ausgewählt.</p>
+        <p class="backup-warning">
+          Achtung: Ein Restore ersetzt die lokale Datenbank und Konfiguration.
+          Enthaltene Medien ersetzen außerdem das Medienverzeichnis.
+        </p>
+        <button id="restoreBtn" class="danger" type="submit">Backup wiederherstellen</button>
+      </form>
+      <progress id="backupProgress" class="backup-progress hidden" max="100"></progress>
+      <p id="backupStatus" class="backup-status" role="status" aria-live="polite">Bereit.</p>
+      <p class="backup-limit">Maximale ZIP- und entpackte Größe: 10 GB.</p>
+    </section>
+
     <pre id="statusBox" class="status-box">Status: bereit</pre>
   </aside>
+
+  <dialog id="restoreConfirmDialog" class="hotspot-dialog backup-confirm-dialog" aria-labelledby="restoreConfirmTitle">
+    <div class="hotspot-dialog__content">
+      <h2 id="restoreConfirmTitle">Bestehende Daten ersetzen?</h2>
+      <p>Vor dem Restore wird automatisch ein vollständiges Sicherheitsbackup erstellt. Der Vorgang darf nicht unterbrochen werden.</p>
+      <div class="hotspot-dialog__actions backup-confirm-actions">
+        <button id="cancelRestoreBtn" type="button">Abbrechen</button>
+        <button id="confirmRestoreBtn" class="danger" type="button">Jetzt wiederherstellen</button>
+      </div>
+    </div>
+  </dialog>
 
   <dialog id="hotspotInfoDialog" class="hotspot-dialog" aria-labelledby="hotspotInfoTitle" aria-describedby="hotspotInfoText">
     <div class="hotspot-dialog__content">
@@ -219,6 +253,7 @@
   <script src="/static/js/tinyplanet.js"></script>
   <script src="/static/js/viewer.js"></script>
   <script src="/static/js/admin.js"></script>
+  <script src="/static/js/backup.js"></script>
   <script src="/static/js/app.js"></script>
   <script src="/static/js/projects.js"></script>
 </body>

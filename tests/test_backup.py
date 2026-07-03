@@ -1,0 +1,262 @@
+from __future__ import annotations
+
+import io
+import json
+import sqlite3
+import stat
+import tempfile
+import unittest
+import zipfile
+from contextlib import closing
+from pathlib import Path
+from unittest.mock import patch
+
+import app as panorama_app
+from core import backup
+
+
+class BackupApiTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        root = Path(self.temp_dir.name)
+        data_dir = root / "data"
+        media_dir = root / "media"
+        self.path_patch = patch.multiple(
+            panorama_app,
+            DATA_DIR=data_dir,
+            CONFIG_DIR=data_dir / "config",
+            MEDIA_DIR=media_dir,
+            PHOTO_DIR=media_dir / "photos",
+            VIDEO_DIR=media_dir / "videos",
+            THUMB_DIR=media_dir / "thumbs",
+            DB_PATH=data_dir / "panorama_studio.db",
+        )
+        self.path_patch.start()
+        panorama_app.app.config.update(TESTING=True)
+        panorama_app.init_db()
+        panorama_app.CONFIG_DIR.joinpath("studio.json").write_text(
+            '{"theme":"dark"}', encoding="utf-8"
+        )
+        panorama_app.PHOTO_DIR.joinpath("tour").mkdir()
+        panorama_app.PHOTO_DIR.joinpath("tour", "pano.jpg").write_bytes(b"photo")
+        panorama_app.VIDEO_DIR.joinpath("clip.mp4").write_bytes(b"video")
+        with panorama_app.db() as conn:
+            conn.execute(
+                """
+                INSERT INTO media
+                (type, file_path, title, project, created_at, updated_at)
+                VALUES ('photo', 'media/photos/tour/pano.jpg', 'Original', 'Tour', 1, 1)
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO projects(id, name, description, created_at, updated_at)
+                VALUES (1, 'Tour', 'Test', 1, 1)
+                """
+            )
+            conn.commit()
+        self.client = panorama_app.app.test_client()
+
+    def tearDown(self) -> None:
+        self.path_patch.stop()
+        self.temp_dir.cleanup()
+
+    def export_backup(self, includes_media: bool) -> bytes:
+        response = self.client.post(
+            "/api/backup/export", json={"includes_media": includes_media}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "application/zip")
+        self.assertIn("attachment", response.headers["Content-Disposition"])
+        content = response.get_data()
+        response.close()
+        return content
+
+    def import_backup(self, content: bytes, filename: str = "backup.zip"):
+        return self.client.post(
+            "/api/backup/import",
+            data={"file": (io.BytesIO(content), filename)},
+            content_type="multipart/form-data",
+        )
+
+    @staticmethod
+    def rewrite_archive(
+        content: bytes,
+        *,
+        skip: set[str] | None = None,
+        replacements: dict[str, bytes] | None = None,
+        extras: list[tuple[zipfile.ZipInfo | str, bytes]] | None = None,
+    ) -> bytes:
+        output = io.BytesIO()
+        skip = skip or set()
+        replacements = replacements or {}
+        with zipfile.ZipFile(io.BytesIO(content), "r") as source:
+            with zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as target:
+                for info in source.infolist():
+                    if info.filename in skip:
+                        continue
+                    target.writestr(info, replacements.get(info.filename, source.read(info)))
+                for name, data in extras or []:
+                    target.writestr(name, data)
+        return output.getvalue()
+
+    def assert_error(self, response, status: int, code: str) -> None:
+        self.assertEqual(response.status_code, status)
+        payload = response.get_json()
+        self.assertEqual(payload["error"]["code"], code)
+        self.assertIsInstance(payload["error"]["message"], str)
+
+    def test_export_without_media_contains_manifest_database_config_and_readme(self) -> None:
+        content = self.export_backup(False)
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            names = set(archive.namelist())
+            manifest = json.loads(archive.read("manifest.json"))
+            self.assertIn("panorama_studio.db", names)
+            self.assertIn("README.txt", names)
+            self.assertIn("config/studio.json", names)
+            self.assertFalse(any(name.startswith("media/") for name in names))
+            self.assertEqual(
+                set(manifest),
+                {
+                    "app_name",
+                    "app_version",
+                    "backup_version",
+                    "created_at",
+                    "includes_media",
+                    "database_filename",
+                    "media_count",
+                    "project_count",
+                },
+            )
+            self.assertEqual(manifest["app_name"], "Panorama Studio")
+            self.assertEqual(manifest["app_version"], "0.3.1")
+            self.assertEqual(manifest["backup_version"], 1)
+            self.assertFalse(manifest["includes_media"])
+            self.assertEqual(manifest["database_filename"], "panorama_studio.db")
+            self.assertEqual(manifest["media_count"], 1)
+            self.assertEqual(manifest["project_count"], 1)
+
+    def test_export_with_media_contains_supported_media_and_count(self) -> None:
+        content = self.export_backup(True)
+        with zipfile.ZipFile(io.BytesIO(content)) as archive:
+            names = set(archive.namelist())
+            manifest = json.loads(archive.read("manifest.json"))
+            self.assertIn("media/photos/tour/pano.jpg", names)
+            self.assertIn("media/videos/clip.mp4", names)
+            self.assertTrue(manifest["includes_media"])
+            self.assertEqual(manifest["media_count"], 1)
+
+    def test_restore_replaces_database_and_creates_full_safety_backup(self) -> None:
+        original = self.export_backup(False)
+        with panorama_app.db() as conn:
+            conn.execute("UPDATE media SET title = 'Vor Restore'")
+            conn.commit()
+        panorama_app.PHOTO_DIR.joinpath("keep.jpg").write_bytes(b"keep")
+
+        response = self.import_backup(original)
+        self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
+        payload = response.get_json()
+        self.assertTrue(payload["restart_required"])
+        self.assertIn("neu starten", payload["message"])
+        self.assertTrue(panorama_app.PHOTO_DIR.joinpath("keep.jpg").exists())
+
+        with panorama_app.db() as conn:
+            self.assertEqual(conn.execute("SELECT title FROM media").fetchone()[0], "Original")
+
+        safety_path = panorama_app.DATA_DIR / "backups" / payload["safety_backup"]
+        self.assertTrue(safety_path.is_file())
+        with zipfile.ZipFile(safety_path) as archive:
+            self.assertIn("media/photos/keep.jpg", archive.namelist())
+            database_bytes = archive.read("panorama_studio.db")
+        safety_db = Path(self.temp_dir.name) / "safety.db"
+        safety_db.write_bytes(database_bytes)
+        with closing(sqlite3.connect(safety_db)) as conn:
+            self.assertEqual(conn.execute("SELECT title FROM media").fetchone()[0], "Vor Restore")
+
+    def test_restore_with_media_replaces_media_directory(self) -> None:
+        content = self.export_backup(True)
+        panorama_app.PHOTO_DIR.joinpath("obsolete.jpg").write_bytes(b"obsolete")
+        panorama_app.PHOTO_DIR.joinpath("tour", "pano.jpg").write_bytes(b"changed")
+        response = self.import_backup(content)
+        self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
+        self.assertFalse(panorama_app.PHOTO_DIR.joinpath("obsolete.jpg").exists())
+        self.assertEqual(
+            panorama_app.PHOTO_DIR.joinpath("tour", "pano.jpg").read_bytes(),
+            b"photo",
+        )
+
+    def test_zip_slip_is_rejected(self) -> None:
+        content = self.rewrite_archive(
+            self.export_backup(False), extras=[("../escape.txt", b"attack")]
+        )
+        self.assert_error(self.import_backup(content), 400, "unsafe_archive_path")
+
+    def test_missing_manifest_is_rejected(self) -> None:
+        content = self.rewrite_archive(
+            self.export_backup(False), skip={"manifest.json"}
+        )
+        self.assert_error(self.import_backup(content), 400, "manifest_missing")
+
+    def test_wrong_backup_version_is_rejected(self) -> None:
+        source = self.export_backup(False)
+        with zipfile.ZipFile(io.BytesIO(source)) as archive:
+            manifest = json.loads(archive.read("manifest.json"))
+        manifest["backup_version"] = 999
+        content = self.rewrite_archive(
+            source,
+            replacements={"manifest.json": json.dumps(manifest).encode("utf-8")},
+        )
+        self.assert_error(
+            self.import_backup(content), 400, "backup_version_unsupported"
+        )
+
+    def test_corrupt_zip_and_non_zip_extension_are_rejected(self) -> None:
+        self.assert_error(self.import_backup(b"not a zip"), 400, "archive_corrupt")
+        self.assert_error(
+            self.import_backup(b"not a zip", "backup.txt"), 415, "invalid_file_type"
+        )
+
+    def test_corrupt_database_inside_valid_zip_is_rejected(self) -> None:
+        content = self.rewrite_archive(
+            self.export_backup(False),
+            replacements={"panorama_studio.db": b"not a sqlite database"},
+        )
+        self.assert_error(
+            self.import_backup(content), 400, "database_integrity_failed"
+        )
+
+    def test_symlink_entry_is_rejected(self) -> None:
+        source = self.export_backup(True)
+        link = zipfile.ZipInfo("media/photos/link.jpg")
+        link.create_system = 3
+        link.external_attr = (stat.S_IFLNK | 0o777) << 16
+        content = self.rewrite_archive(source, extras=[(link, b"target.jpg")])
+        self.assert_error(self.import_backup(content), 400, "symlink_not_allowed")
+
+    def test_import_requires_a_file_and_export_requires_boolean(self) -> None:
+        self.assert_error(
+            self.client.post("/api/backup/import"), 400, "backup_file_missing"
+        )
+        self.assert_error(
+            self.client.post("/api/backup/export", json={"includes_media": "yes"}),
+            400,
+            "invalid_request",
+        )
+
+
+class BackupAssetTests(unittest.TestCase):
+    def test_backup_ui_uses_safe_text_and_custom_confirmation(self) -> None:
+        root = Path(__file__).resolve().parents[1]
+        page = (root / "static" / "index.html").read_text(encoding="utf-8")
+        source = (root / "static" / "js" / "backup.js").read_text(encoding="utf-8")
+        self.assertIn('id="backupTitle"', page)
+        self.assertIn('id="restoreConfirmDialog"', page)
+        self.assertIn('role="status"', page)
+        self.assertIn("textContent", source)
+        self.assertIn("XMLHttpRequest", source)
+        self.assertNotIn(".innerHTML", source)
+        self.assertNotIn("alert(", source)
+
+
+if __name__ == "__main__":
+    unittest.main()
