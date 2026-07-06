@@ -55,6 +55,23 @@ applyUiState();
 function setStatus(message) { statusBox.textContent = 'Status: ' + message; }
 function mediaUrl(path) { return '/' + path; }
 
+async function loadAppVersion() {
+  const versionElement = document.getElementById('appVersion');
+  if (!versionElement) return;
+  try {
+    const response = await fetch('/api/version', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    if (typeof payload.version !== 'string' || !payload.version.trim()) {
+      throw new Error('Ungültige Versionsantwort');
+    }
+    versionElement.textContent = `v${payload.version}`;
+  } catch (error) {
+    versionElement.textContent = 'Version unbekannt';
+    console.warn('App-Version konnte nicht geladen werden:', error);
+  }
+}
+
 function callOptionalUi(apiName, methodName, ...args) {
   try {
     const result = window[apiName]?.[methodName]?.(...args);
@@ -348,4 +365,5 @@ editForm.onsubmit = async (e) => {
   await loadMedia();
 };
 
+loadAppVersion();
 loadMedia();

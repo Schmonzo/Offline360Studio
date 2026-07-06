@@ -104,7 +104,7 @@
       return;
     }
     if (!zipInput.checked) {
-      showError('Version 0.9.0 unterstützt den Download ausschließlich als ZIP.');
+      showError('Der portable Export unterstützt den Download ausschließlich als ZIP.');
       zipInput.focus();
       return;
     }

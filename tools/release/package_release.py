@@ -48,6 +48,19 @@ def main() -> int:
     with zipfile.ZipFile(
         output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9
     ) as archive:
+        directories = sorted(
+            path for path in staging.rglob("*") if path.is_dir()
+        )
+        root_info = zipfile.ZipInfo(
+            f"{staging.name}/", FIXED_TIME
+        )
+        root_info.external_attr = (0o40755 << 16) | 0x10
+        archive.writestr(root_info, b"")
+        for path in directories:
+            relative = path.relative_to(staging.parent).as_posix() + "/"
+            info = zipfile.ZipInfo(relative, FIXED_TIME)
+            info.external_attr = (0o40755 << 16) | 0x10
+            archive.writestr(info, b"")
         for path in files:
             relative = path.relative_to(staging.parent).as_posix()
             info = zipfile.ZipInfo(relative, FIXED_TIME)

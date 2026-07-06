@@ -4,6 +4,9 @@
 
 `core/version.py` ist die einzige Produktversionsquelle. App, Diagnose,
 Exporter, Backup und Release-Build importieren beziehungsweise lesen sie.
+`GET /api/version` liefert den unveränderten Wert an den App-Header; das
+Frontend ergänzt ausschließlich für die Anzeige ein `v`-Präfix. Bei einem
+fehlgeschlagenen Abruf zeigt der Header keine konkrete Fallback-Version.
 Das Datenbankschema liegt unter `core/migrations/`; `migrate()` legt
 `schema_migrations` an und führt jede offene Migration in einer eigenen
 Transaktion aus. Migrationen sind additiv, idempotent und datenerhaltend.
@@ -28,14 +31,26 @@ zulässig.
 Aus einem sauberen Checkout:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools/release/build-release.ps1
+powershell -ExecutionPolicy Bypass -File tools/release/build-release.ps1 -Mode dev
+powershell -ExecutionPolicy Bypass -File tools/release/build-release.ps1 -Mode standalone
 python tools/smoke_test.py
 ```
 
 Der Release-Build testet Python, JavaScript und Go, baut und verifiziert den
-lokalen Go-Server in einem temporären Ausgabeverzeichnis und erzeugt ein
-deterministisches Developer-ZIP unter `build/release/`. Die Ausgabe ist
-ignoriert; der Build verändert keine versionierten Dateien und hält den
+lokalen Go-Server in einem temporären Ausgabeverzeichnis und erzeugt unter
+`build/release/` wahlweise ein deterministisches Developer- oder
+Standalone-ZIP. `-Mode dev` ist der Standard und behält die externe
+Python-Voraussetzung. `-Mode standalone` entpackt das offizielle
+CPython-3.12.10-Embeddable-Paket nach `runtime/python`, aktiviert dessen
+lokales `Lib/site-packages`, bootstrapped das SHA-256-geprüfte `get-pip.py`
+nur im Build und installiert die gepinnten Requirements in die Runtime.
+Anschließend prüft die eingebettete Runtime die zentralen Imports und der
+Build entfernt pip wieder aus dem Endnutzerpaket.
+
+Der Download-Cache liegt unter `tools/release/cache/`. Eine Datei wird nur bei
+passendem fest dokumentiertem SHA-256 wiederverwendet; ein beschädigter Cache
+wird verworfen und erneut geladen. Der Cache, Staging-Ausgaben und Release-ZIPs
+sind ignoriert. Der Build verändert keine versionierten Dateien und hält den
 Arbeitsbaum sauber. Die für den portablen Tour-Export benötigten
 `tools/portable-server/server.exe` und `server.exe.sha256` bleiben versioniert,
 werden vom Release-Build aber nicht überschrieben. Der Smoke-Test startet die
@@ -43,10 +58,15 @@ echte App auf einem freien Port mit temporärer
 Laufzeitwurzel und prüft Startseite, Projekte, Diagnose, Backup und Portable
 Export.
 
-Bekannte v1.0-Risiken sind die externe Python-3-Voraussetzung, der fehlende
-Installer, systemabhängige WebGL-/Codec-Unterstützung und temporärer
-Speicherbedarf großer Backups oder Karten. Nächste Etappe ist Embedded Python
-oder ein Windows-Installer.
+Im Paket setzt das Startskript `PANORAMA_STUDIO_RUNTIME_ROOT` auf die
+Paketwurzel. Dadurch verwenden Migrationen, Backup/Restore, MBTiles, Medien
+und Logs die Verzeichnisse `data/`, `media/` und `logs/` außerhalb von
+`app/`. Es gibt beim Start keine Installations-, pip- oder Downloadlogik.
+
+Bekannte v1.0-Risiken sind der fehlende Installer, systemabhängige
+WebGL-/Codec-Unterstützung und temporärer Speicherbedarf großer Backups oder
+Karten. Das Standalone-Paket unterstützt Windows x64; der Standalone-Build
+benötigt bei leerem Cache Netzwerkzugriff.
 
 ## Portabler Tour-Export
 
@@ -82,6 +102,7 @@ portable-tour/
   index.html
   tour.json
   README.txt
+  VERSION.txt
   start-tour.bat
   server.exe
   assets/

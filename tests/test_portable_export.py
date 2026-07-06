@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import app as panorama_app
+from core import portable_export
 
 
 class PortableExportTests(unittest.TestCase):
@@ -230,6 +231,7 @@ class PortableExportTests(unittest.TestCase):
                 "portable-tour/index.html",
                 "portable-tour/tour.json",
                 "portable-tour/README.txt",
+                "portable-tour/VERSION.txt",
                 "portable-tour/start-tour.bat",
                 "portable-tour/server.exe",
                 "portable-tour/assets/css/viewer.css",
@@ -242,6 +244,11 @@ class PortableExportTests(unittest.TestCase):
                 self.portable_server.read_bytes(),
             )
             tour = json.loads(archive.read("portable-tour/tour.json"))
+            version = archive.read("portable-tour/VERSION.txt").decode("ascii").strip()
+            readme = archive.read("portable-tour/README.txt").decode("utf-8")
+            self.assertEqual(tour["version"], portable_export.EXPORT_VERSION)
+            self.assertEqual(version, portable_export.EXPORT_VERSION)
+            self.assertIn(portable_export.EXPORT_VERSION, readme)
             self.assertEqual(tour["media_order"], [self.second, self.first, self.video])
             self.assertEqual(tour["project"]["start_media_id"], self.second)
             self.assertEqual(tour["project"]["cover_media_id"], self.first)
