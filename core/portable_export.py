@@ -9,8 +9,9 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
+from core.version import __version__
 
-EXPORT_VERSION = "0.9.0"
+EXPORT_VERSION = __version__
 ARCHIVE_ROOT = "portable-tour"
 LOGGER = logging.getLogger(__name__)
 
@@ -170,6 +171,18 @@ def _validated_server(server_executable: Path) -> tuple[Path, Path | None]:
             500,
         )
     return expected, hash_file
+
+
+def server_hash_status(server_executable: Path) -> dict[str, bool | str]:
+    try:
+        _validated_server(server_executable)
+        return {"present": True, "sha256_valid": True, "status": "valid"}
+    except PortableExportError as exc:
+        return {
+            "present": server_executable.is_file(),
+            "sha256_valid": False,
+            "status": exc.code,
+        }
 
 
 def create_archive(

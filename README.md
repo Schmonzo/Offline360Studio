@@ -1,6 +1,27 @@
 # Panorama Studio
 
-## Portabler Offline-Tour-Export (v0.9.0)
+Die aktuelle Produktversion wird ausschließlich in `core/version.py` gepflegt.
+App, Admin-Diagnose, Exporte, Backups und Release-Build lesen diese Quelle.
+
+## Stabilisierung und Windows-Betrieb
+
+Beim Start werden Daten- und Medienverzeichnisse, Schreibrechte, Datenbank,
+Migrationen und der SHA-256-Hash des portablen Servers geprüft. Kritische
+Fehler beenden den Start verständlich; ein fehlender portabler Server erzeugt
+eine Warnung. Strukturierte Logs rotieren unter
+`logs/panorama-studio.log` (5 × 5 MiB).
+
+Der Adminbereich bietet eine Systemdiagnose mit Laufzeitversionen,
+Schema-Version, gekürzten Pfaden, Speicherplatz, Objektzählern,
+Schreibrechtstatus, Serverstatus und letzter Backup-Zeit. Der Bericht steht
+auch unter `GET /api/diagnostics/report` als JSON bereit.
+
+`start-panorama-studio.bat` arbeitet ohne Downloads oder automatische
+Installation. Das aktuelle Windows-ZIP ist ein Developer-Paket: Python 3 und
+die Pakete aus `requirements.txt` müssen vorhanden sein. Embedded Python oder
+ein Installer ist die nächste Etappe.
+
+## Portabler Offline-Tour-Export
 
 Im Adminbereich erzeugt **Portable Tour exportieren** aus einem Projekt eine
 eigenständige ZIP-Datei. Sie enthält Projektdaten als `tour.json`, einen
@@ -72,7 +93,7 @@ API:
 Der Admin-Bereich kann lokale Projektdaten als ZIP exportieren und wiederherstellen.
 Ein Backup enthält:
 
-- `manifest.json` mit Format-, Versions- und Inhaltsangaben
+- `manifest.json` mit App-, Schema- und Formatversion sowie SHA-256 jeder Datei
 - `README.txt`
 - `panorama_studio.db` als konsistente SQLite-Kopie
 - unterstützte Konfigurationsdateien aus `data/config/` unter `config/`
@@ -94,6 +115,30 @@ Studio neu gestartet werden.
 
 Backups ohne Medien lassen vorhandene Mediendateien beim Restore unverändert.
 Backups mit Medien ersetzen das lokale Medienverzeichnis.
+
+Das aktuelle Backupformat prüft Dateiliste und Prüfsummen vollständig vor dem
+Entpacken. Manipulierte oder unvollständige Archive sowie Backups mit neuerer
+Schema-Version werden abgelehnt. Legacy-Backups des bisherigen Formats bleiben
+lesbar, soweit Datenbank- und Inhaltsprüfung erfolgreich sind.
+
+## Datenbankmigrationen
+
+`core/migrations/` enthält geordnete additive Migrationen.
+`schema_migrations` protokolliert jede erfolgreich abgeschlossene Migration
+genau einmal. Migrationen laufen transaktional und idempotent; automatische
+Downgrades gibt es nicht. Aktueller Stand ist Schema 3 (`initial`,
+`gps_and_maps`, `portable_export`).
+
+## Windows-Release
+
+`tools/release/build-release.ps1` verlangt einen sauberen Git-Arbeitsbaum,
+zeigt Branch und zentrale Version, führt Python-, JavaScript- und Go-Tests aus,
+baut und prüft `portable-server` und erzeugt ein deterministisches ZIP unter
+`build/release/`. Alle Laufzeitassets sind lokal.
+
+Bekannte v1.0-Risiken: Python ist noch nicht eingebettet, Browser-Codecs und
+WebGL sind systemabhängig, große Medien-/MBTiles-Bestände benötigen
+ausreichend temporären Speicher, und es gibt noch keinen Installer.
 
 Offline-Karten werden nur gesichert und beim Restore ersetzt, wenn
 `includes_maps` im Manifest `true` ist. Diese Option ist wegen der

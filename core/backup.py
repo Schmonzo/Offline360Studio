@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -16,11 +17,14 @@ from pathlib import Path, PurePosixPath
 from typing import BinaryIO
 
 from core import mbtiles
+from core.migrations import LATEST_SCHEMA_VERSION, current_schema_version
+from core.version import __version__
 
 
 APP_NAME = "Panorama Studio"
-APP_VERSION = "0.3.1"
-BACKUP_VERSION = 1
+APP_VERSION = __version__
+BACKUP_VERSION = 2
+LEGACY_BACKUP_VERSIONS = {1}
 MAX_BACKUP_SIZE = 10 * 1024 * 1024 * 1024
 MAX_ARCHIVE_FILES = 100_000
 MAX_MANIFEST_SIZE = 64 * 1024
@@ -110,6 +114,14 @@ def _map_files(maps_dir: Path):
             yield path
 
 
+def _sha256_path(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def _copy_database(source: Path, destination: Path) -> None:
     if not source.is_file():
         raise BackupError("database_missing", "Die lokale Datenbank wurde nicht gefunden.", 500)
@@ -168,16 +180,41 @@ def create_backup(
                     500,
                 )
             check_map_sources(database_copy, maps_dir, True)
+        entries: list[tuple[str, Path | bytes]] = [
+            ("README.txt", README_TEXT.encode("utf-8")),
+            (DATABASE_FILENAME, database_copy),
+        ]
+        entries.extend(
+            (f"config/{path.relative_to(config_dir).as_posix()}", path)
+            for path in _config_files(config_dir)
+        )
+        entries.extend(
+            (f"media/{path.relative_to(media_dir).as_posix()}", path)
+            for path in media_files
+        )
+        entries.extend((f"maps/{path.name}", path) for path in map_files)
+        checksums = {
+            name: (
+                hashlib.sha256(content).hexdigest()
+                if isinstance(content, bytes)
+                else _sha256_path(content)
+            )
+            for name, content in entries
+        }
+        with closing(sqlite3.connect(database_copy)) as schema_conn:
+            schema_version = current_schema_version(schema_conn)
         manifest = {
             "app_name": APP_NAME,
             "app_version": APP_VERSION,
             "backup_version": BACKUP_VERSION,
+            "schema_version": schema_version,
             "created_at": utc_timestamp(),
             "includes_media": includes_media,
             "includes_maps": includes_maps,
             "database_filename": DATABASE_FILENAME,
             "media_count": media_count,
             "project_count": project_count,
+            "files": checksums,
         }
         filename = f"{filename_prefix}-{safe_timestamp()}.zip"
         archive_path = output_dir / filename
@@ -188,14 +225,11 @@ def create_backup(
                 "manifest.json",
                 json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
             )
-            archive.writestr("README.txt", README_TEXT)
-            archive.write(database_copy, DATABASE_FILENAME)
-            for path in _config_files(config_dir):
-                archive.write(path, f"config/{path.relative_to(config_dir).as_posix()}")
-            for path in media_files:
-                archive.write(path, f"media/{path.relative_to(media_dir).as_posix()}")
-            for path in map_files:
-                archive.write(path, f"maps/{path.name}")
+            for name, content in entries:
+                if isinstance(content, bytes):
+                    archive.writestr(name, content)
+                else:
+                    archive.write(content, name)
         return BackupArtifact(archive_path, filename, manifest)
     except BackupError:
         raise
@@ -324,11 +358,34 @@ def _read_manifest(archive: zipfile.ZipFile) -> dict:
     manifest["includes_maps"] = manifest.get("includes_maps", False)
     if manifest["app_name"] != APP_NAME:
         raise BackupError("manifest_invalid", "Das Backup gehört nicht zu Panorama Studio.")
-    if manifest["backup_version"] != BACKUP_VERSION:
+    if manifest["backup_version"] not in LEGACY_BACKUP_VERSIONS | {BACKUP_VERSION}:
         raise BackupError(
             "backup_version_unsupported",
             f"Backup-Version {manifest['backup_version']} wird nicht unterstützt.",
         )
+    if manifest["backup_version"] == BACKUP_VERSION:
+        if type(manifest.get("schema_version")) is not int or not isinstance(
+            manifest.get("files"), dict
+        ):
+            raise BackupError(
+                "manifest_invalid",
+                "Das Backup-Manifest enthält keine Schema-Version oder Prüfsummen.",
+            )
+        if manifest["schema_version"] > LATEST_SCHEMA_VERSION:
+            raise BackupError(
+                "schema_version_too_new",
+                "Das Backup verwendet eine neuere, inkompatible Schema-Version.",
+            )
+        for name, digest in manifest["files"].items():
+            if (
+                not isinstance(name, str)
+                or not isinstance(digest, str)
+                or re.fullmatch(r"[0-9a-f]{64}", digest) is None
+            ):
+                raise BackupError(
+                    "manifest_invalid",
+                    "Das Backup-Manifest enthält ungültige Prüfsummen.",
+                )
     database_name = manifest["database_filename"]
     if (
         database_name != Path(database_name).name
@@ -374,6 +431,27 @@ def validate_and_extract(archive_path: Path, destination: Path) -> dict:
                 raise BackupError("backup_incomplete", "Das Backup enthält nicht alle Pflichtdateien.")
             if archive.testzip() is not None:
                 raise BackupError("archive_corrupt", "Die ZIP-Datei ist beschädigt.")
+            if manifest["backup_version"] == BACKUP_VERSION:
+                payload_names = {
+                    info.filename
+                    for info in infos
+                    if not info.is_dir() and info.filename != "manifest.json"
+                }
+                if payload_names != set(manifest["files"]):
+                    raise BackupError(
+                        "backup_incomplete",
+                        "Die Dateiliste stimmt nicht mit dem Backup-Manifest überein.",
+                    )
+                for name, expected_digest in manifest["files"].items():
+                    digest = hashlib.sha256()
+                    with archive.open(name, "r") as source:
+                        for chunk in iter(lambda: source.read(1024 * 1024), b""):
+                            digest.update(chunk)
+                    if digest.hexdigest() != expected_digest:
+                        raise BackupError(
+                            "checksum_mismatch",
+                            f"Prüfsumme ungültig: {PurePosixPath(name).name}",
+                        )
             destination.mkdir(parents=True, exist_ok=True)
             for info in infos:
                 path = _safe_member_path(info.filename.rstrip("/"))
@@ -508,6 +586,12 @@ def restore_backup(
         manifest = validate_and_extract(archive_path, extracted)
         incoming_database = extracted / manifest["database_filename"]
         check_database(incoming_database)
+        with closing(sqlite3.connect(incoming_database)) as incoming_conn:
+            if current_schema_version(incoming_conn) > LATEST_SCHEMA_VERSION:
+                raise BackupError(
+                    "schema_version_too_new",
+                    "Das Backup verwendet eine neuere, inkompatible Schema-Version.",
+                )
         check_map_sources(
             incoming_database, extracted / "maps", manifest["includes_maps"]
         )

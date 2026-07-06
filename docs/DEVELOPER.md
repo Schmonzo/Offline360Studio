@@ -1,5 +1,48 @@
 # Panorama Studio Developer Guide
 
+## v1-Stabilisierung
+
+`core/version.py` ist die einzige Produktversionsquelle. App, Diagnose,
+Exporter, Backup und Release-Build importieren beziehungsweise lesen sie.
+Das Datenbankschema liegt unter `core/migrations/`; `migrate()` legt
+`schema_migrations` an und führt jede offene Migration in einer eigenen
+Transaktion aus. Migrationen sind additiv, idempotent und datenerhaltend.
+Automatische Downgrades sind nicht vorgesehen. Schema-Version 3 ist aktuell.
+
+`startup_check()` prüft Verzeichnisse, Schreibzugriff, Datenbank/Migrationen
+und portable-server-Hash. Kritische Fehler verhindern den Start; ein fehlender
+Exportserver ist eine Warnung. `PANORAMA_STUDIO_RUNTIME_ROOT` setzt für Tests
+die Wurzel von `data/`, `media/` und `logs/`.
+
+`GET /api/diagnostics` liefert den gekürzten Diagnosebericht,
+`GET /api/diagnostics/report` denselben Inhalt als Download. Das Rotationslog
+hat 5 MiB und fünf Backups. Logs dürfen keine Benutzerinhalte, Geheimnisse
+oder vollständigen sensitiven Pfade enthalten.
+
+Backupformat 2 enthält App- und Schema-Version sowie SHA-256 für alle
+Nutzdateien. Dateiliste, ZIP-Struktur und Hashes werden vor dem Entpacken
+validiert. Neuere Schema-Versionen und manipulierte Archive werden abgelehnt.
+Format 1 bleibt als Legacy-Import mit Struktur-, SQLite- und Zählerprüfung
+zulässig.
+
+Aus einem sauberen Checkout:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools/release/build-release.ps1
+python tools/smoke_test.py
+```
+
+Der Release-Build testet Python, JavaScript und Go, baut und verifiziert den
+lokalen Go-Server und erzeugt ein deterministisches Developer-ZIP. Der
+Smoke-Test startet die echte App auf einem freien Port mit temporärer
+Laufzeitwurzel und prüft Startseite, Projekte, Diagnose, Backup und Portable
+Export.
+
+Bekannte v1.0-Risiken sind die externe Python-3-Voraussetzung, der fehlende
+Installer, systemabhängige WebGL-/Codec-Unterstützung und temporärer
+Speicherbedarf großer Backups oder Karten. Nächste Etappe ist Embedded Python
+oder ein Windows-Installer.
+
 ## Portabler Tour-Export
 
 `POST /api/export/portable-tour` validiert den JSON-Body und delegiert an

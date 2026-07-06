@@ -126,17 +126,21 @@ class BackupApiTests(unittest.TestCase):
                     "app_name",
                     "app_version",
                     "backup_version",
+                    "schema_version",
                     "created_at",
                     "includes_media",
                     "includes_maps",
                     "database_filename",
                     "media_count",
                     "project_count",
+                    "files",
                 },
             )
             self.assertEqual(manifest["app_name"], "Panorama Studio")
-            self.assertEqual(manifest["app_version"], "0.3.1")
-            self.assertEqual(manifest["backup_version"], 1)
+            self.assertEqual(manifest["app_version"], "1.0.0-rc1")
+            self.assertEqual(manifest["backup_version"], 2)
+            self.assertEqual(manifest["schema_version"], 3)
+            self.assertIn("panorama_studio.db", manifest["files"])
             self.assertFalse(manifest["includes_media"])
             self.assertFalse(manifest["includes_maps"])
             self.assertEqual(manifest["database_filename"], "panorama_studio.db")
@@ -339,7 +343,7 @@ class BackupApiTests(unittest.TestCase):
             replacements={"panorama_studio.db": b"not a sqlite database"},
         )
         self.assert_error(
-            self.import_backup(content), 400, "database_integrity_failed"
+            self.import_backup(content), 400, "checksum_mismatch"
         )
 
     def test_symlink_entry_is_rejected(self) -> None:
