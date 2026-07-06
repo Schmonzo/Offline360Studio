@@ -9,7 +9,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from core.version import __version__
-from tools.release.package_release import digest, main
+from tools.release.package_release import (
+    digest,
+    main,
+    validate_no_absolute_build_paths,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -98,7 +102,11 @@ class ReleaseRepositoryContractTests(unittest.TestCase):
         source = SCRIPT.read_text(encoding="utf-8")
         self.assertIn('set "PANORAMA_STUDIO_RUNTIME_ROOT=%CD%"', source)
         app_source = (ROOT / "app.py").read_text(encoding="utf-8")
-        self.assertIn('os.environ.get("PANORAMA_STUDIO_RUNTIME_ROOT"', app_source)
+        runtime_source = (ROOT / "core" / "runtime_paths.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("runtime_paths.build_runtime_paths(BASE_DIR)", app_source)
+        self.assertIn('os.environ.get(RUNTIME_ROOT_ENV)', runtime_source)
 
     def test_digest_is_stable(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -130,6 +138,15 @@ class ReleaseRepositoryContractTests(unittest.TestCase):
             self.assertIn(prefix + "data/", names)
             self.assertIn(prefix + "media/", names)
             self.assertIn(prefix + "logs/", names)
+
+    def test_packager_rejects_absolute_build_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            stage = Path(temporary) / "stage"
+            stage.mkdir()
+            leaked = stage / "leaked.txt"
+            leaked.write_text(str(stage.resolve()), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                validate_no_absolute_build_paths(stage, [leaked])
 
 
 if __name__ == "__main__":
