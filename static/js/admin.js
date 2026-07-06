@@ -375,3 +375,46 @@ window.hotspotAdmin = {
   setCurrentItem,
   setMediaItems
 };
+
+async function loadSystemDiagnostics() {
+  const status = document.getElementById('diagnosticsStatus');
+  const container = document.getElementById('diagnosticsData');
+  if (!status || !container) return;
+  try {
+    const response = await fetch('/api/diagnostics', { cache: 'no-store' });
+    const report = await response.json();
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const values = [
+      ['Version', report.panorama_studio_version],
+      ['Python', report.python_version],
+      ['Betriebssystem', report.operating_system],
+      ['Datenbank', report.paths.database],
+      ['Medien', report.paths.media],
+      ['Log', report.paths.log],
+      ['Freier Speicher', `${(report.free_disk_bytes / (1024 ** 3)).toFixed(1)} GiB`],
+      ['Projekte', report.counts.projects],
+      ['Medienanzahl', report.counts.media],
+      ['Hotspots', report.counts.hotspots],
+      ['GPX-Tracks', report.counts.gpx_tracks],
+      ['MBTiles-Quellen', report.counts.mbtiles_sources],
+      ['Daten beschreibbar', report.writable.data ? 'Ja' : 'Nein'],
+      ['Medien beschreibbar', report.writable.media ? 'Ja' : 'Nein'],
+      ['Portable Server', report.portable_server.present ? 'Vorhanden' : 'Fehlt'],
+      ['Server SHA-256', report.portable_server.sha256_valid ? 'Gültig' : 'Ungültig'],
+      ['Letztes Backup', report.last_backup_at || 'Nicht ermittelbar']
+    ];
+    container.replaceChildren();
+    for (const [label, value] of values) {
+      const term = document.createElement('dt');
+      const detail = document.createElement('dd');
+      term.textContent = String(label);
+      detail.textContent = String(value);
+      container.append(term, detail);
+    }
+    status.textContent = 'Diagnose aktuell.';
+  } catch (error) {
+    status.textContent = `Diagnose nicht verfügbar: ${error.message || 'Unbekannter Fehler'}`;
+  }
+}
+
+loadSystemDiagnostics();

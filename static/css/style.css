@@ -212,6 +212,13 @@ code { color: #ffd3b5; }
 .backup-limit { margin-top:8px !important; font-size:11px !important; }
 .backup-confirm-actions { gap:10px; }
 .backup-confirm-actions button { min-width:150px; }
+.diagnostics-admin { margin-top:18px; padding-top:18px; border-top:1px solid var(--line); }
+.diagnostics-admin h3 { margin:0 0 8px; font-size:16px; }
+.diagnostics-admin > p { color:var(--muted); font-size:13px; }
+.diagnostics-data { display:grid; grid-template-columns:minmax(120px, 1fr) minmax(0, 1.3fr); gap:6px 10px; margin:10px 0 14px; font-size:12px; }
+.diagnostics-data dt { color:var(--muted); }
+.diagnostics-data dd { margin:0; overflow-wrap:anywhere; }
+.button-link { display:inline-block; padding:10px 14px; border:1px solid var(--line); border-radius:12px; color:var(--text); background:#20242d; text-decoration:none; }
 .status-box { white-space:pre-wrap; background:#0f1116; border:1px solid var(--line); color:#d6d8df; border-radius:12px; padding:12px; min-height:80px; }
 .video360 { position:relative; width:100%; height:100%; overflow:hidden; background:#000; outline:none; touch-action:none; cursor:grab; }
 .video360--dragging { cursor:grabbing; }
