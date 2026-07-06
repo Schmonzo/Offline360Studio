@@ -25,6 +25,91 @@ const uiState = {
   adminOpen: false
 };
 
+const ADMIN_SECTION_STORAGE_KEY = 'ps_admin_section';
+const DEFAULT_ADMIN_SECTION = 'media';
+const adminSectionTabs = [...document.querySelectorAll('[data-admin-section]')];
+const adminSectionPanels = [...document.querySelectorAll('[data-admin-panel]')];
+const adminNavigationElement = document.querySelector('.admin-navigation');
+const compactAdminNavigation = window.matchMedia('(max-width: 720px)');
+
+function updateAdminNavigationOrientation() {
+  adminNavigationElement?.setAttribute(
+    'aria-orientation',
+    compactAdminNavigation.matches ? 'horizontal' : 'vertical'
+  );
+}
+compactAdminNavigation.addEventListener?.('change', updateAdminNavigationOrientation);
+updateAdminNavigationOrientation();
+
+function readStoredAdminSection() {
+  try {
+    const storedSection = localStorage.getItem(ADMIN_SECTION_STORAGE_KEY);
+    return adminSectionTabs.some(tab => tab.dataset.adminSection === storedSection)
+      ? storedSection
+      : DEFAULT_ADMIN_SECTION;
+  } catch (error) {
+    return DEFAULT_ADMIN_SECTION;
+  }
+}
+
+function setAdminSection(section, { focus = false } = {}) {
+  const activeSection = adminSectionTabs.some(tab => tab.dataset.adminSection === section)
+    ? section
+    : DEFAULT_ADMIN_SECTION;
+
+  adminSectionTabs.forEach(tab => {
+    const selected = tab.dataset.adminSection === activeSection;
+    tab.setAttribute('aria-selected', String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+    if (selected && focus) tab.focus();
+  });
+  adminSectionPanels.forEach(panel => {
+    panel.hidden = panel.dataset.adminPanel !== activeSection;
+  });
+
+  try {
+    localStorage.setItem(ADMIN_SECTION_STORAGE_KEY, activeSection);
+  } catch (error) {
+    // Navigation remains usable when storage is unavailable.
+  }
+  return activeSection;
+}
+
+function moveAdminTabFocus(currentTab, offset) {
+  const currentIndex = adminSectionTabs.indexOf(currentTab);
+  const nextIndex = (currentIndex + offset + adminSectionTabs.length) % adminSectionTabs.length;
+  setAdminSection(adminSectionTabs[nextIndex].dataset.adminSection, { focus: true });
+}
+
+adminSectionTabs.forEach(tab => {
+  tab.addEventListener('click', () => setAdminSection(tab.dataset.adminSection));
+  tab.addEventListener('keydown', event => {
+    if (['ArrowRight', 'ArrowDown'].includes(event.key)) {
+      event.preventDefault();
+      moveAdminTabFocus(tab, 1);
+    } else if (['ArrowLeft', 'ArrowUp'].includes(event.key)) {
+      event.preventDefault();
+      moveAdminTabFocus(tab, -1);
+    } else if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      const targetIndex = event.key === 'Home' ? 0 : adminSectionTabs.length - 1;
+      setAdminSection(adminSectionTabs[targetIndex].dataset.adminSection, { focus: true });
+    }
+  });
+});
+setAdminSection(readStoredAdminSection());
+
+window.adminNavigation = {
+  activate: setAdminSection,
+  getActive() {
+    return adminSectionTabs.find(tab => tab.getAttribute('aria-selected') === 'true')
+      ?.dataset.adminSection || DEFAULT_ADMIN_SECTION;
+  },
+  focusActive() {
+    adminSectionTabs.find(tab => tab.getAttribute('aria-selected') === 'true')?.focus();
+  }
+};
+
 function applyUiState() {
   const mapControlsVisible = uiState.mapViewActive && !uiState.adminOpen;
   viewerRootElement?.classList.toggle('hidden', uiState.mapViewActive);
@@ -57,7 +142,8 @@ function mediaUrl(path) { return '/' + path; }
 
 async function loadAppVersion() {
   const versionElement = document.getElementById('appVersion');
-  if (!versionElement) return;
+  const adminVersionElement = document.getElementById('adminAppVersion');
+  if (!versionElement && !adminVersionElement) return;
   try {
     const response = await fetch('/api/version', { cache: 'no-store' });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -65,9 +151,11 @@ async function loadAppVersion() {
     if (typeof payload.version !== 'string' || !payload.version.trim()) {
       throw new Error('Ungültige Versionsantwort');
     }
-    versionElement.textContent = `v${payload.version}`;
+    if (versionElement) versionElement.textContent = `v${payload.version}`;
+    if (adminVersionElement) adminVersionElement.textContent = `v${payload.version}`;
   } catch (error) {
-    versionElement.textContent = 'Version unbekannt';
+    if (versionElement) versionElement.textContent = 'Version unbekannt';
+    if (adminVersionElement) adminVersionElement.textContent = 'Version unbekannt';
     console.warn('App-Version konnte nicht geladen werden:', error);
   }
 }
@@ -331,10 +419,22 @@ function setAdminMode(enabled) {
   window.appUiState.setAdminOpen(enabled);
   callOptionalUi('hotspotAdmin', 'setAdminMode', enabled);
   callOptionalUi('projectUi', 'setAdminMode', enabled);
+  if (enabled) {
+    window.requestAnimationFrame(() => window.adminNavigation.focusActive());
+  }
 }
 
 document.getElementById('adminToggleBtn').onclick = () => setAdminMode(adminPanel.classList.contains('hidden'));
-document.getElementById('closeAdminBtn').onclick = () => setAdminMode(false);
+document.getElementById('closeAdminBtn').onclick = () => {
+  setAdminMode(false);
+  document.getElementById('adminToggleBtn').focus();
+};
+adminPanel.addEventListener('keydown', event => {
+  if (event.key !== 'Escape') return;
+  event.stopPropagation();
+  setAdminMode(false);
+  document.getElementById('adminToggleBtn').focus();
+});
 document.getElementById('fullscreenBtn').onclick = () => window.viewerControls?.toggleFullscreen();
 document.getElementById('zoomInBtn').onclick = () => window.viewerControls?.zoomIn();
 document.getElementById('zoomOutBtn').onclick = () => window.viewerControls?.zoomOut();

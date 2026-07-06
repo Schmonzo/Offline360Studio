@@ -26,7 +26,6 @@
     </section>
 
     <div class="toolbar">
-      <button id="rescanBtn">Neu einlesen</button>
       <button id="adminToggleBtn">Admin</button>
     </div>
 
@@ -130,201 +129,223 @@
     <div id="viewerMessage" class="viewer-message hidden" role="alert"></div>
   </main>
 
-  <aside id="adminPanel" class="admin-panel hidden">
+  <aside id="adminPanel" class="admin-panel hidden" aria-label="Administration">
     <div class="admin-header">
       <h2>Admin</h2>
-      <button id="closeAdminBtn">×</button>
+      <button id="closeAdminBtn" type="button" aria-label="Adminbereich schließen">×</button>
     </div>
 
-    <section id="projectAdmin" class="project-admin">
-      <div class="project-admin-heading">
-        <h3>Projekte und Touren</h3>
-        <button id="newProjectBtn" type="button">Neues Projekt</button>
-      </div>
-      <label>Projekt
-        <select id="adminProjectSelect">
-          <option value="">Projekt auswählen</option>
-        </select>
-      </label>
-      <form id="projectForm" novalidate>
-        <label>Name
-          <input id="projectName" required />
-        </label>
-        <label>Beschreibung
-          <textarea id="projectDescription"></textarea>
-        </label>
-        <div class="project-form-actions">
-          <button id="deleteProjectBtn" class="danger" type="button" disabled>Löschen</button>
-          <button id="saveProjectBtn" type="submit">Projekt anlegen</button>
-        </div>
-      </form>
-      <p id="projectError" class="form-error hidden" role="alert"></p>
-      <div id="projectMediaEditor" class="project-media-editor hidden">
-        <div class="project-cover-status">
-          <span>Aktuelles Cover</span>
-          <div id="projectCoverPreview" class="project-cover-preview"></div>
-        </div>
-        <div class="project-media-add">
-          <select id="projectMediaSelect" aria-label="Medium hinzufügen"></select>
-          <button id="addProjectMediaBtn" type="button">Hinzufügen</button>
-        </div>
-        <ol id="projectMediaList" class="project-media-list"></ol>
-      </div>
-    </section>
+    <div class="admin-layout">
+      <nav class="admin-navigation" role="tablist" aria-label="Adminbereiche" aria-orientation="vertical">
+        <button id="adminTabMedia" class="admin-nav-item" type="button" role="tab" aria-selected="true" aria-controls="adminSectionMedia" tabindex="0" data-admin-section="media">Medien</button>
+        <button id="adminTabProjects" class="admin-nav-item" type="button" role="tab" aria-selected="false" aria-controls="adminSectionProjects" tabindex="-1" data-admin-section="projects">Projekte / Touren</button>
+        <button id="adminTabHotspots" class="admin-nav-item" type="button" role="tab" aria-selected="false" aria-controls="adminSectionHotspots" tabindex="-1" data-admin-section="hotspots">Hotspots</button>
+        <button id="adminTabMaps" class="admin-nav-item" type="button" role="tab" aria-selected="false" aria-controls="adminSectionMaps" tabindex="-1" data-admin-section="maps">Karten &amp; GPS</button>
+        <button id="adminTabBackup" class="admin-nav-item" type="button" role="tab" aria-selected="false" aria-controls="adminSectionBackup" tabindex="-1" data-admin-section="backup">Backup / Restore</button>
+        <button id="adminTabExport" class="admin-nav-item" type="button" role="tab" aria-selected="false" aria-controls="adminSectionExport" tabindex="-1" data-admin-section="export">Export</button>
+        <button id="adminTabSystem" class="admin-nav-item" type="button" role="tab" aria-selected="false" aria-controls="adminSectionSystem" tabindex="-1" data-admin-section="system">System</button>
+      </nav>
 
-    <label class="admin-upload-project">Upload-Projekt
-      <input id="uploadProject" placeholder="Default" value="Default" />
-    </label>
-
-    <div id="dropZone" class="drop-zone">
-      <strong>Dateien hier ablegen</strong>
-      <span>JPG, PNG, MP4 · automatisch ins Upload-Projekt</span>
-      <input id="fileInput" type="file" multiple accept="image/*,video/mp4,video/quicktime" />
-    </div>
-
-    <div id="startViewControls" class="start-view-controls hidden">
-      <button id="saveStartViewBtn" type="button">Aktuelle Ansicht als Start speichern</button>
-      <button id="resetStartViewBtn" type="button">Startansicht zurücksetzen</button>
-    </div>
-
-    <button id="addHotspotBtn" class="add-hotspot-btn hidden" type="button" aria-pressed="false">Hotspot hinzufügen</button>
-
-    <form id="editForm" class="edit-form">
-      <label>Titel<input id="editTitle" /></label>
-      <label>Projekt<input id="editProject" /></label>
-      <label>Kategorie<input id="editCategory" placeholder="z.B. Berge, Messe, Familie" /></label>
-      <label>Beschreibung<textarea id="editDescription"></textarea></label>
-      <label class="check"><input id="editFavorite" type="checkbox" /> Favorit</label>
-      <label class="check"><input id="editVisible" type="checkbox" checked /> Sichtbar</label>
-      <button type="submit">Speichern</button>
-    </form>
-
-    <section class="gps-admin" aria-labelledby="gpsTitle">
-      <h3 id="gpsTitle">GPS-Position</h3>
-      <form id="gpsForm">
-        <div class="gps-coordinate-grid">
-          <label>Latitude
-            <input id="gpsLatitude" type="number" min="-90" max="90" step="any" />
+      <div class="admin-sections">
+        <section id="adminSectionMedia" class="admin-section" role="tabpanel" aria-labelledby="adminTabMedia" data-admin-panel="media">
+          <header class="admin-section-heading">
+            <h3>Medien</h3>
+            <p>Dateien importieren, neu einlesen und Metadaten des gewählten Mediums bearbeiten.</p>
+          </header>
+          <button id="rescanBtn" type="button">Medien neu einlesen</button>
+          <label class="admin-upload-project">Upload-Projekt
+            <input id="uploadProject" placeholder="Default" value="Default" />
           </label>
-          <label>Longitude
-            <input id="gpsLongitude" type="number" min="-180" max="180" step="any" />
-          </label>
-        </div>
-        <label>Höhe (Meter)
-          <input id="gpsAltitude" type="number" step="any" />
-        </label>
-        <p>Quelle: <strong id="gpsSource">–</strong></p>
-        <div class="gps-actions">
-          <button id="deleteGpsBtn" class="danger" type="button">Position löschen</button>
-          <button type="submit">Manuell speichern</button>
-        </div>
-      </form>
-      <p id="gpsStatus" class="inline-status" role="status" aria-live="polite">Kein Medium gewählt.</p>
-    </section>
+          <div id="dropZone" class="drop-zone">
+            <strong>Dateien hier ablegen</strong>
+            <span>JPG, PNG, MP4 · automatisch ins Upload-Projekt</span>
+            <input id="fileInput" type="file" multiple accept="image/*,video/mp4,video/quicktime" />
+          </div>
+          <form id="editForm" class="edit-form">
+            <label>Titel<input id="editTitle" /></label>
+            <label>Projekt<input id="editProject" /></label>
+            <label>Kategorie<input id="editCategory" placeholder="z.B. Berge, Messe, Familie" /></label>
+            <label>Beschreibung<textarea id="editDescription"></textarea></label>
+            <label class="check"><input id="editFavorite" type="checkbox" /> Favorit</label>
+            <label class="check"><input id="editVisible" type="checkbox" checked /> Sichtbar</label>
+            <button type="submit">Medienangaben speichern</button>
+          </form>
+        </section>
 
-    <section class="gpx-admin" aria-labelledby="gpxTitle">
-      <h3 id="gpxTitle">GPX-Tracks</h3>
-      <form id="gpxImportForm">
-        <label>GPX-Datei
-          <input id="gpxFile" type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" required />
-        </label>
-        <label>Projekt (optional)
-          <select id="gpxProject">
-            <option value="">Kein Projekt</option>
-          </select>
-        </label>
-        <button type="submit">GPX importieren</button>
-      </form>
-      <label>Maximale Zeitdifferenz (Sekunden)
-        <input id="gpxMatchDifference" type="number" min="0" max="86400" value="300" />
-      </label>
-      <div id="gpxTrackList" class="gpx-track-list"></div>
-      <p id="gpxStatus" class="inline-status" role="status" aria-live="polite">Bereit.</p>
-    </section>
+        <section id="adminSectionProjects" class="admin-section" role="tabpanel" aria-labelledby="adminTabProjects" data-admin-panel="projects" hidden>
+          <header class="admin-section-heading">
+            <h3>Projekte / Touren</h3>
+            <p>Touren verwalten, Medien zuordnen sowie Reihenfolge, Startmedium und Cover festlegen.</p>
+          </header>
+          <div id="projectAdmin" class="project-admin">
+            <div class="project-admin-heading">
+              <h4>Projektverwaltung</h4>
+              <button id="newProjectBtn" type="button">Neues Projekt</button>
+            </div>
+            <label>Projekt
+              <select id="adminProjectSelect">
+                <option value="">Projekt auswählen</option>
+              </select>
+            </label>
+            <form id="projectForm" novalidate>
+              <label>Name<input id="projectName" required /></label>
+              <label>Beschreibung<textarea id="projectDescription"></textarea></label>
+              <div class="project-form-actions">
+                <button id="deleteProjectBtn" class="danger" type="button" disabled>Löschen</button>
+                <button id="saveProjectBtn" type="submit">Projekt anlegen</button>
+              </div>
+            </form>
+            <p id="projectError" class="form-error hidden" role="alert"></p>
+            <div id="projectMediaEditor" class="project-media-editor hidden">
+              <div class="project-cover-status">
+                <span>Aktuelles Cover</span>
+                <div id="projectCoverPreview" class="project-cover-preview"></div>
+              </div>
+              <div class="project-media-add">
+                <select id="projectMediaSelect" aria-label="Medium hinzufügen"></select>
+                <button id="addProjectMediaBtn" type="button">Hinzufügen</button>
+              </div>
+              <ol id="projectMediaList" class="project-media-list"></ol>
+            </div>
+          </div>
+        </section>
 
-    <section class="offline-maps-admin" aria-labelledby="offlineMapsTitle">
-      <h3 id="offlineMapsTitle">Offline-Karten</h3>
-      <p>Lokale Raster-MBTiles (PNG, JPEG, WebP) oder Vector-MBTiles (PBF/MVT), maximal 5 GB.</p>
-      <form id="offlineMapImportForm">
-        <label for="offlineMapFile">MBTiles-Datei auswählen
-          <input id="offlineMapFile" name="file" type="file" accept=".mbtiles" required />
-        </label>
-        <button id="offlineMapImportBtn" type="submit">Importieren</button>
-      </form>
-      <div id="offlineMapList" class="offline-map-list"></div>
-      <p id="offlineMapStatus" class="inline-status" role="status" aria-live="polite">Bereit.</p>
-    </section>
+        <section id="adminSectionHotspots" class="admin-section" role="tabpanel" aria-labelledby="adminTabHotspots" data-admin-panel="hotspots" hidden>
+          <header class="admin-section-heading">
+            <h3>Hotspots</h3>
+            <p>Startansicht und Info- oder Panorama-Hotspots für das gewählte Panorama verwalten.</p>
+          </header>
+          <div id="startViewControls" class="start-view-controls hidden">
+            <button id="saveStartViewBtn" type="button">Aktuelle Ansicht als Start speichern</button>
+            <button id="resetStartViewBtn" type="button">Startansicht zurücksetzen</button>
+          </div>
+          <button id="addHotspotBtn" class="add-hotspot-btn hidden" type="button" aria-pressed="false">Hotspot hinzufügen</button>
+          <p class="admin-help">Vorhandene Hotspots werden direkt im Panorama angezeigt und können dort ausgewählt und bearbeitet werden.</p>
+        </section>
 
-    <section class="portable-export-admin" aria-labelledby="portableExportTitle">
-      <h3 id="portableExportTitle">Portable Tour exportieren</h3>
-      <p>Eigenständige Offline-Tour mit statischem Viewer erzeugen.</p>
-      <form id="portableExportForm">
-        <label>Projekt auswählen
-          <select id="portableExportProject" required>
-            <option value="">Projekt auswählen</option>
-          </select>
-        </label>
-        <label>Dateiname
-          <input id="portableExportFilename" value="portable-tour" required />
-        </label>
-        <label class="check">
-          <input id="portableExportZip" type="checkbox" checked />
-          ZIP erstellen
-        </label>
-        <label class="check">
-          <input id="portableExportVideos" type="checkbox" checked />
-          Videos einschließen
-        </label>
-        <label class="check">
-          <input id="portableExportMap" type="checkbox" />
-          Offline-Karte einschließen
-        </label>
-        <label class="check">
-          <input id="portableExportTracks" type="checkbox" />
-          GPX-Tracks einschließen
-        </label>
-        <button id="portableExportBtn" type="submit">Tour exportieren</button>
-      </form>
-      <p id="portableExportStatus" class="portable-export-status" role="status" aria-live="polite">Bereit.</p>
-      <p id="portableExportError" class="form-error hidden" role="alert"></p>
-    </section>
+        <section id="adminSectionMaps" class="admin-section" role="tabpanel" aria-labelledby="adminTabMaps" data-admin-panel="maps" hidden>
+          <header class="admin-section-heading">
+            <h3>Karten &amp; GPS</h3>
+            <p>Medienpositionen, GPX-Tracks und lokale MBTiles-Karten verwalten.</p>
+          </header>
+          <section class="gps-admin" aria-labelledby="gpsTitle">
+            <h4 id="gpsTitle">GPS-Position</h4>
+            <form id="gpsForm">
+              <div class="gps-coordinate-grid">
+                <label>Latitude<input id="gpsLatitude" type="number" min="-90" max="90" step="any" /></label>
+                <label>Longitude<input id="gpsLongitude" type="number" min="-180" max="180" step="any" /></label>
+              </div>
+              <label>Höhe (Meter)<input id="gpsAltitude" type="number" step="any" /></label>
+              <p>Quelle: <strong id="gpsSource">–</strong></p>
+              <div class="gps-actions">
+                <button id="deleteGpsBtn" class="danger" type="button">Position löschen</button>
+                <button type="submit">Manuell speichern</button>
+              </div>
+            </form>
+            <p id="gpsStatus" class="inline-status" role="status" aria-live="polite">Kein Medium gewählt.</p>
+          </section>
+          <section class="gpx-admin" aria-labelledby="gpxTitle">
+            <h4 id="gpxTitle">GPX-Tracks</h4>
+            <form id="gpxImportForm">
+              <label>GPX-Datei<input id="gpxFile" type="file" accept=".gpx,application/gpx+xml,application/xml,text/xml" required /></label>
+              <label>Projekt (optional)
+                <select id="gpxProject"><option value="">Kein Projekt</option></select>
+              </label>
+              <button type="submit">GPX importieren</button>
+            </form>
+            <label>Maximale Zeitdifferenz (Sekunden)
+              <input id="gpxMatchDifference" type="number" min="0" max="86400" value="300" />
+            </label>
+            <div id="gpxTrackList" class="gpx-track-list"></div>
+            <p id="gpxStatus" class="inline-status" role="status" aria-live="polite">Bereit.</p>
+          </section>
+          <section class="offline-maps-admin" aria-labelledby="offlineMapsTitle">
+            <h4 id="offlineMapsTitle">Offline-Karten</h4>
+            <p>Lokale Raster-MBTiles (PNG, JPEG, WebP) oder Vector-MBTiles (PBF/MVT), maximal 5 GB.</p>
+            <form id="offlineMapImportForm">
+              <label for="offlineMapFile">MBTiles-Datei auswählen
+                <input id="offlineMapFile" name="file" type="file" accept=".mbtiles" required />
+              </label>
+              <button id="offlineMapImportBtn" type="submit">Importieren</button>
+            </form>
+            <div id="offlineMapList" class="offline-map-list"></div>
+            <p id="offlineMapStatus" class="inline-status" role="status" aria-live="polite">Bereit.</p>
+          </section>
+        </section>
 
-    <section class="backup-admin" aria-labelledby="backupTitle">
-      <h3 id="backupTitle">Backup &amp; Restore</h3>
-      <p>Projekte, Zuordnungen, Hotspots, Startansichten und Einstellungen lokal als ZIP sichern.</p>
-      <div class="backup-actions">
-        <button id="exportWithoutMediaBtn" type="button">Backup ohne Medien</button>
-        <button id="exportWithMediaBtn" type="button">Backup mit Medien</button>
+        <section id="adminSectionBackup" class="admin-section" role="tabpanel" aria-labelledby="adminTabBackup" data-admin-panel="backup" hidden>
+          <header class="admin-section-heading">
+            <h3>Backup / Restore</h3>
+            <p>Lokale Daten sichern oder eine vorhandene Sicherung wiederherstellen.</p>
+          </header>
+          <section class="backup-admin" aria-labelledby="backupTitle">
+            <h4 id="backupTitle">Backup erstellen und wiederherstellen</h4>
+            <p>Projekte, Zuordnungen, Hotspots, Startansichten und Einstellungen lokal als ZIP sichern.</p>
+            <div class="backup-actions">
+              <button id="exportWithoutMediaBtn" type="button">Backup ohne Medien</button>
+              <button id="exportWithMediaBtn" type="button">Backup mit Medien</button>
+            </div>
+            <label class="backup-maps-option">
+              <input id="backupIncludeMaps" type="checkbox" />
+              Offline-Karten einschließen (kann das Backup stark vergrößern)
+            </label>
+            <form id="restoreForm" class="restore-form">
+              <label for="backupFile">ZIP-Backup auswählen
+                <input id="backupFile" name="file" type="file" accept=".zip,application/zip" required />
+              </label>
+              <p id="backupFileName" class="backup-file-name">Keine Datei ausgewählt.</p>
+              <p class="backup-warning">
+                Achtung: Ein Restore ersetzt die lokale Datenbank und Konfiguration.
+                Enthaltene Medien ersetzen außerdem das Medienverzeichnis.
+                Enthaltene Offline-Karten ersetzen das Kartenverzeichnis.
+              </p>
+              <button id="restoreBtn" class="danger" type="submit">Backup wiederherstellen</button>
+            </form>
+            <progress id="backupProgress" class="backup-progress hidden" max="100"></progress>
+            <p id="backupStatus" class="backup-status" role="status" aria-live="polite">Bereit.</p>
+            <p class="backup-limit">Maximale ZIP- und entpackte Größe: 10 GB.</p>
+          </section>
+        </section>
+
+        <section id="adminSectionExport" class="admin-section" role="tabpanel" aria-labelledby="adminTabExport" data-admin-panel="export" hidden>
+          <header class="admin-section-heading">
+            <h3>Export</h3>
+            <p>Eine eigenständige, offline nutzbare Tour bereitstellen.</p>
+          </header>
+          <section class="portable-export-admin" aria-labelledby="portableExportTitle">
+            <h4 id="portableExportTitle">Portable Tour exportieren</h4>
+            <p>Eigenständige Offline-Tour mit statischem Viewer erzeugen.</p>
+            <form id="portableExportForm">
+              <label>Projekt auswählen
+                <select id="portableExportProject" required><option value="">Projekt auswählen</option></select>
+              </label>
+              <label>Dateiname<input id="portableExportFilename" value="portable-tour" required /></label>
+              <label class="check"><input id="portableExportZip" type="checkbox" checked /> ZIP erstellen</label>
+              <label class="check"><input id="portableExportVideos" type="checkbox" checked /> Videos einschließen</label>
+              <label class="check"><input id="portableExportMap" type="checkbox" /> Offline-Karte einschließen</label>
+              <label class="check"><input id="portableExportTracks" type="checkbox" /> GPX-Tracks einschließen</label>
+              <button id="portableExportBtn" type="submit">Tour exportieren</button>
+            </form>
+            <p id="portableExportStatus" class="portable-export-status" role="status" aria-live="polite">Bereit.</p>
+            <p id="portableExportError" class="form-error hidden" role="alert"></p>
+          </section>
+        </section>
+
+        <section id="adminSectionSystem" class="admin-section" role="tabpanel" aria-labelledby="adminTabSystem" data-admin-panel="system" hidden>
+          <header class="admin-section-heading">
+            <h3>System</h3>
+            <p>Version, Laufzeitstatus und Diagnoseinformationen prüfen.</p>
+          </header>
+          <p class="system-version">Installierte Version: <strong id="adminAppVersion">Version unbekannt</strong></p>
+          <section class="diagnostics-admin" aria-labelledby="diagnosticsTitle">
+            <h4 id="diagnosticsTitle">Systemdiagnose</h4>
+            <p id="diagnosticsStatus">Diagnosedaten werden geladen.</p>
+            <dl id="diagnosticsData" class="diagnostics-data"></dl>
+            <a class="button-link" href="/api/diagnostics/report" download>Diagnosebericht herunterladen</a>
+          </section>
+        </section>
       </div>
-      <label class="backup-maps-option">
-        <input id="backupIncludeMaps" type="checkbox" />
-        Offline-Karten einschließen (kann das Backup stark vergrößern)
-      </label>
-      <form id="restoreForm" class="restore-form">
-        <label for="backupFile">ZIP-Backup auswählen
-          <input id="backupFile" name="file" type="file" accept=".zip,application/zip" required />
-        </label>
-        <p id="backupFileName" class="backup-file-name">Keine Datei ausgewählt.</p>
-        <p class="backup-warning">
-          Achtung: Ein Restore ersetzt die lokale Datenbank und Konfiguration.
-          Enthaltene Medien ersetzen außerdem das Medienverzeichnis.
-          Enthaltene Offline-Karten ersetzen das Kartenverzeichnis.
-        </p>
-        <button id="restoreBtn" class="danger" type="submit">Backup wiederherstellen</button>
-      </form>
-      <progress id="backupProgress" class="backup-progress hidden" max="100"></progress>
-      <p id="backupStatus" class="backup-status" role="status" aria-live="polite">Bereit.</p>
-      <p class="backup-limit">Maximale ZIP- und entpackte Größe: 10 GB.</p>
-    </section>
-
-    <section class="diagnostics-admin" aria-labelledby="diagnosticsTitle">
-      <h3 id="diagnosticsTitle">Systemdiagnose</h3>
-      <p id="diagnosticsStatus">Diagnosedaten werden geladen.</p>
-      <dl id="diagnosticsData" class="diagnostics-data"></dl>
-      <a class="button-link" href="/api/diagnostics/report" download>
-        Diagnosebericht herunterladen
-      </a>
-    </section>
+    </div>
 
     <pre id="statusBox" class="status-box">Status: bereit</pre>
   </aside>
