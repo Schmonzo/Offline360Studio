@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portable Tour</title>
+  <link rel="stylesheet" href="assets/lib/leaflet.css" />
+  <link rel="stylesheet" href="assets/lib/maplibre-gl.css" />
+  <link rel="stylesheet" href="assets/css/viewer.css" />
+</head>
+<body>
+  <section id="fileNotice" class="startup hidden" role="alert">
+    <h1>Portable Tour</h1>
+    <p>Diese Tour kann aus Sicherheitsgründen nicht direkt über <code>file://</code> geladen werden.</p>
+    <p><strong>Bitte start-tour.bat verwenden.</strong></p>
+  </section>
+  <div id="app" class="app hidden">
+    <header>
+      <button id="galleryBtn" type="button">← Galerie</button>
+      <div><strong id="projectName"></strong><span id="projectDescription"></span></div>
+      <button id="mapBtn" type="button">Karte</button>
+    </header>
+    <main>
+      <section id="gallery" class="gallery" aria-label="Galerie"></section>
+      <section id="viewerScreen" class="viewer-screen hidden">
+        <div id="viewer" class="viewer"></div>
+        <div class="viewer-title"><strong id="mediaTitle"></strong><span id="mediaDescription"></span></div>
+        <div class="viewer-actions">
+          <button id="previousBtn" type="button" aria-label="Vorheriges Medium">←</button>
+          <button id="normalBtn" type="button">Normal</button>
+          <button id="tinyBtn" type="button">Tiny Planet</button>
+          <button id="rabbitBtn" type="button">Rabbit Hole</button>
+          <button id="nextBtn" type="button" aria-label="Nächstes Medium">→</button>
+        </div>
+      </section>
+      <section id="mapScreen" class="map-screen hidden">
+        <div id="map"></div>
+        <p id="mapStatus"></p>
+      </section>
+    </main>
+  </div>
+  <dialog id="infoDialog"><h2 id="infoTitle">Information</h2><p id="infoText"></p><button id="closeInfoBtn" type="button">Schließen</button></dialog>
+  <script>
+    if (location.protocol === 'file:') document.getElementById('fileNotice').classList.remove('hidden');
+    else document.getElementById('app').classList.remove('hidden');
+  </script>
+  <script src="assets/lib/marzipano.js"></script>
+  <script src="assets/lib/leaflet.js"></script>
+  <script src="assets/lib/maplibre-gl.js"></script>
+  <script src="assets/js/video360.js"></script>
+  <script src="assets/js/tinyplanet.js"></script>
+  <script src="assets/js/viewer.js"></script>
+</body>
+</html>

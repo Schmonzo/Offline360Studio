@@ -1,5 +1,106 @@
 # Panorama Studio Developer Guide
 
+## Portabler Tour-Export
+
+`POST /api/export/portable-tour` validiert den JSON-Body und delegiert an
+`core/portable_export.py`. Der Exporter liest ausschließlich das angeforderte
+Projekt und dessen geordnete `project_media`-Zuordnungen. Hotspots werden nur
+für exportierte Quellmedien übernommen; Panorama-Ziele außerhalb des
+Exportumfangs werden verworfen. Videos, die aktive Offline-Karte und
+projektgebundene GPX-Tracks sind separat schaltbar.
+
+Beispiel:
+
+```json
+{
+  "project_id": 1,
+  "filename": "meine-tour",
+  "include_videos": true,
+  "include_map": true,
+  "include_tracks": true
+}
+```
+
+Die Antwort ist ein gestreamter ZIP-Download. Das temporäre Archiv wird im
+Generator-`finally` sowie beim Schließen der Response entfernt. Der statische
+Viewer stammt aus `portable_viewer/`; Drittbibliotheken werden ausschließlich
+aus `static/lib/` in das Archiv kopiert. Dadurch bleibt der Viewer unabhängig
+von Flask, ohne eine zweite Kopie der Bibliotheken im Repository zu pflegen.
+
+Archivstruktur:
+
+```text
+portable-tour/
+  index.html
+  tour.json
+  README.txt
+  start-tour.bat
+  server.exe
+  assets/
+    css/  js/  lib/
+    media/  thumbnails/
+    maps/  tracks/
+```
+
+### Sicherheitsmodell
+
+- Die Projekt-ID wird serverseitig auf Existenz geprüft.
+- Medien stammen ausschließlich aus dem zum Typ passenden
+  `media/photos`- oder `media/videos`-Verzeichnis.
+- Vorschaubilder und Karten stammen ausschließlich aus `media/thumbs`
+  beziehungsweise `data/maps`.
+- Absolute Pfade und `..`-Segmente werden abgelehnt. Nach Auflösung von
+  symbolischen Links muss der Pfad weiterhin innerhalb des erlaubten
+  Verzeichnisses liegen.
+- Datenbankpfade werden nie als ZIP-Zielnamen verwendet. Archivnamen bestehen
+  aus Datenbank-ID und bereinigtem Basisnamen.
+- Fehlende oder unsichere Dateien werden protokolliert, im Manifest als nicht
+  verfügbar markiert und nicht kopiert.
+- `tour.json` enthält nur relative POSIX-Pfade.
+- GPX werden aus den zum Projekt gehörenden Datenbankzeilen rekonstruiert;
+  Tracks anderer Projekte werden nicht exportiert.
+
+### Portabler Server und Viewer
+
+Der Viewer lädt `tour.json` über den eigenen lokalen HTTP-Server und rendert Fotos
+mit Marzipano, Videos sowie stereografische Projektionen mit Three.js und
+Kartenoverlays mit Leaflet. MapLibre wird lokal mitgeliefert. Bei `file://`
+zeigt `index.html` nur den Start-Hinweis.
+
+Der Go-Quellcode liegt unter `tools/portable-server/`. Der Server verwendet
+für HTTP ausschließlich die Standardbibliothek und für SQLite
+`modernc.org/sqlite v1.53.0` (BSD-3-Clause; SQLite-Anteile Public Domain).
+Die Abhängigkeit ist CGO-frei. `build.ps1` führt Modultidy und Tests aus,
+setzt `CGO_ENABLED=0`, baut eine Windows-amd64-EXE mit `-trimpath` und
+entfernten Debugsymbolen und schreibt `server.exe.sha256`.
+
+Der Exporter kopiert ausschließlich
+`tools/portable-server/server.exe` zusammen mit `server.exe.sha256`. Der Hash
+wird vor jedem Export geprüft. Fehlt eine Datei oder stimmt der Hash nicht,
+wird kein Archiv erzeugt. Die vollständige Build- und Lizenzdokumentation steht in
+`tools/portable-server/README.md`.
+
+Der Server bindet nur `127.0.0.1`, wählt standardmäßig einen dynamischen Port,
+öffnet danach den Standardbrowser und beendet sich sauber bei Strg+C. Der
+Webroot ist auf das EXE-Verzeichnis begrenzt; aufgelöste Symlinks und
+Junctions dürfen diesen nicht verlassen. Verzeichnisauflistung ist
+deaktiviert. Sicherheits- und Cacheheader werden explizit gesetzt.
+
+MBTiles werden unverändert exportiert. Der Server liest ausschließlich den
+relativen Kartenpfad unter `assets/maps/` aus `tour.json`; Requests können
+keinen Dateipfad vorgeben. Unterstützt werden Flat-`tiles` und normalisierte
+`map`/`images`-Schemas, Rasterformate PNG/JPEG/WebP sowie PBF/MVT mit
+TMS-zu-XYZ-Konvertierung und gzip-Kennzeichnung. Endpunkte:
+
+- `GET /api/maps/metadata`
+- `GET /api/maps/tiles/{z}/{x}/{y}`
+- `GET /api/maps/style.json`
+
+Leaflet verwendet den Tile-Endpunkt für Rasterkarten. MapLibre lädt den
+lokal generierten Vector-Stil. Dieser enthält keine externen Glyph-, Sprite-,
+Font- oder Style-URLs. GPS-Marker und GPX-Tracks liegen über beiden
+Kartentypen; ohne Karte bleibt der neutrale Hintergrund verfügbar.
+
 ## Offline-MBTiles
 
 Die Implementierung liegt in `core/mbtiles.py`. Imports werden bis maximal

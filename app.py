@@ -15,7 +15,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 from PIL import Image
 
-from core import backup, gps, gpx, mbtiles
+from core import backup, gps, gpx, mbtiles, portable_export
 
 BASE_DIR = Path(__file__).resolve().parent
 os.chdir(BASE_DIR)
@@ -28,6 +28,8 @@ VIDEO_DIR = MEDIA_DIR / "videos"
 THUMB_DIR = MEDIA_DIR / "thumbs"
 DB_PATH = DATA_DIR / "panorama_studio.db"
 MAPS_DIR = DATA_DIR / "maps"
+PORTABLE_VIEWER_DIR = BASE_DIR / "portable_viewer"
+PORTABLE_SERVER_EXE = BASE_DIR / "tools" / "portable-server" / "server.exe"
 
 PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 VIDEO_EXTENSIONS = {".mp4", ".m4v", ".mov"}
@@ -2030,6 +2032,91 @@ def api_backup_export():
         return api_error(
             "backup_export_failed",
             "Das Backup konnte nicht erstellt werden.",
+            500,
+        )
+
+
+@app.route("/api/export/portable-tour", methods=["POST"])
+def api_portable_tour_export():
+    payload = request.get_json(silent=True)
+    allowed = {
+        "project_id",
+        "filename",
+        "include_videos",
+        "include_map",
+        "include_tracks",
+    }
+    if (
+        not isinstance(payload, dict)
+        or set(payload) != allowed
+        or isinstance(payload.get("project_id"), bool)
+        or not isinstance(payload.get("project_id"), int)
+        or payload["project_id"] <= 0
+        or not isinstance(payload.get("filename"), str)
+        or any(
+            type(payload.get(field)) is not bool
+            for field in ("include_videos", "include_map", "include_tracks")
+        )
+    ):
+        return api_error(
+            "invalid_request",
+            "project_id, filename und alle Exportoptionen müssen gültig angegeben werden.",
+            400,
+        )
+
+    download_name = portable_export.safe_filename(payload["filename"]) + ".zip"
+    header_name = secure_filename(download_name) or "portable-tour.zip"
+    temporary_dir = tempfile.TemporaryDirectory(prefix="panorama-portable-export-")
+    archive_path = Path(temporary_dir.name) / header_name
+    try:
+        init_db()
+        with db() as conn:
+            portable_export.create_archive(
+                conn,
+                archive_path,
+                project_id=payload["project_id"],
+                include_videos=payload["include_videos"],
+                include_map=payload["include_map"],
+                include_tracks=payload["include_tracks"],
+                base_dir=MEDIA_DIR.parent,
+                photo_dir=PHOTO_DIR,
+                video_dir=VIDEO_DIR,
+                thumb_dir=THUMB_DIR,
+                maps_dir=MAPS_DIR,
+                viewer_dir=PORTABLE_VIEWER_DIR,
+                static_dir=app.static_folder and Path(app.static_folder) or BASE_DIR / "static",
+                server_executable=PORTABLE_SERVER_EXE,
+            )
+
+        def stream_archive():
+            try:
+                with archive_path.open("rb") as archive_file:
+                    while chunk := archive_file.read(1024 * 1024):
+                        yield chunk
+            finally:
+                temporary_dir.cleanup()
+
+        response = Response(
+            stream_archive(),
+            mimetype="application/zip",
+            headers={
+                "Content-Disposition": f'attachment; filename="{header_name}"',
+                "Content-Length": str(archive_path.stat().st_size),
+                "X-Content-Type-Options": "nosniff",
+                "Cache-Control": "no-store",
+            },
+        )
+        response.call_on_close(temporary_dir.cleanup)
+        return response
+    except portable_export.PortableExportError as exc:
+        temporary_dir.cleanup()
+        return api_error(exc.code, exc.message, exc.status)
+    except Exception:
+        temporary_dir.cleanup()
+        app.logger.exception("Unerwarteter Fehler beim portablen Tour-Export")
+        return api_error(
+            "portable_export_failed",
+            "Die portable Tour konnte nicht exportiert werden.",
             500,
         )
 
