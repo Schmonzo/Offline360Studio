@@ -137,7 +137,7 @@ class BackupApiTests(unittest.TestCase):
                 },
             )
             self.assertEqual(manifest["app_name"], "Panorama Studio")
-            self.assertEqual(manifest["app_version"], "1.0.0-rc1")
+            self.assertEqual(manifest["app_version"], backup.APP_VERSION)
             self.assertEqual(manifest["backup_version"], 2)
             self.assertEqual(manifest["schema_version"], 3)
             self.assertIn("panorama_studio.db", manifest["files"])

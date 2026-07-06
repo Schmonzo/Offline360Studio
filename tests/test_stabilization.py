@@ -21,10 +21,33 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class VersionAndMigrationTests(unittest.TestCase):
     def test_central_version_is_used(self) -> None:
-        self.assertEqual(__version__, "1.0.0-rc1")
         self.assertEqual(panorama_app.app.config["VERSION"], __version__)
         self.assertEqual(backup.APP_VERSION, __version__)
         self.assertEqual(portable_export.EXPORT_VERSION, __version__)
+
+    def test_no_concrete_version_is_duplicated_in_source_or_docs(self) -> None:
+        forbidden = ("0." + "3.1", "0." + "8.0", "0." + "9.0")
+        excluded_directories = {
+            ".git",
+            ".venv",
+            "build",
+            "__pycache__",
+            "data",
+            "media",
+        }
+        offenders = []
+        for path in ROOT.rglob("*"):
+            if (
+                not path.is_file()
+                or path.suffix.lower() not in {".html", ".js", ".py", ".md"}
+                or excluded_directories.intersection(path.parts)
+                or path == ROOT / "core" / "version.py"
+            ):
+                continue
+            content = path.read_text(encoding="utf-8")
+            if __version__ in content or any(value in content for value in forbidden):
+                offenders.append(str(path.relative_to(ROOT)))
+        self.assertEqual(offenders, [])
 
     def test_migrations_run_once_and_build_empty_database(self) -> None:
         with sqlite3.connect(":memory:") as conn:
@@ -95,10 +118,20 @@ class DiagnosticsAndRuntimeTests(unittest.TestCase):
         self.temporary.cleanup()
 
     def test_diagnostics_endpoint_and_server_hash(self) -> None:
-        response = panorama_app.app.test_client().get("/api/diagnostics")
+        client = panorama_app.app.test_client()
+        version_response = client.get("/api/version")
+        self.assertEqual(version_response.status_code, 200)
+        self.assertEqual(version_response.get_json(), {"version": __version__})
+        self.assertEqual(version_response.headers["Cache-Control"], "no-store")
+
+        response = client.get("/api/diagnostics")
         self.assertEqual(response.status_code, 200)
         report = response.get_json()
         self.assertEqual(report["panorama_studio_version"], __version__)
+        self.assertEqual(
+            report["panorama_studio_version"],
+            version_response.get_json()["version"],
+        )
         self.assertEqual(report["schema_version"], LATEST_SCHEMA_VERSION)
         self.assertTrue(report["portable_server"]["sha256_valid"])
         self.assertNotIn(self.temporary.name, json.dumps(report))

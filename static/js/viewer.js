@@ -1,4 +1,4 @@
-// Panorama Studio v0.3.1
+// Panorama Studio media viewer
 // Robust viewer lifecycle for switching between multiple panoramas without refresh.
 
 let panoramaViewer = null;

@@ -1,3 +1,8 @@
+param(
+    [string]$OutDir = $PSScriptRoot,
+    [switch]$Tidy
+)
+
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
@@ -16,24 +21,33 @@ if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
 
 Push-Location $PSScriptRoot
 try {
-    Invoke-Go -Arguments @("mod", "tidy")
-    Invoke-Go -Arguments @("test", "./...")
+    if ($Tidy) {
+        Invoke-Go -Arguments @("mod", "tidy")
+    }
+    Invoke-Go -Arguments @("test", "-mod=readonly", "./...")
+
+    $ResolvedOutDir = [IO.Path]::GetFullPath($OutDir)
+    New-Item -ItemType Directory -Force -Path $ResolvedOutDir | Out-Null
+    $ServerPath = Join-Path $ResolvedOutDir "server.exe"
+    $HashPath = Join-Path $ResolvedOutDir "server.exe.sha256"
+
     $env:CGO_ENABLED = "0"
     $env:GOOS = "windows"
     $env:GOARCH = "amd64"
     Invoke-Go -Arguments @(
         "build",
+        "-mod=readonly",
         "-trimpath",
         "-ldflags=-s -w",
         "-o",
-        "server.exe",
+        $ServerPath,
         "."
     )
 
-    $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath .\server.exe).Hash.ToLowerInvariant()
-    Set-Content -LiteralPath .\server.exe.sha256 -Value "$hash  server.exe" -Encoding ascii
-    $size = (Get-Item -LiteralPath .\server.exe).Length
-    Write-Host "server.exe erstellt: $size Bytes"
+    $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $ServerPath).Hash.ToLowerInvariant()
+    Set-Content -LiteralPath $HashPath -Value "$hash  server.exe" -Encoding ascii
+    $size = (Get-Item -LiteralPath $ServerPath).Length
+    Write-Host "server.exe erstellt: $ServerPath ($size Bytes)"
     Write-Host "SHA-256: $hash"
 }
 catch {

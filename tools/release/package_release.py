@@ -6,6 +6,17 @@ import zipfile
 from pathlib import Path
 
 FIXED_TIME = (2020, 1, 1, 0, 0, 0)
+TEXT_SUFFIXES = {
+    ".bat",
+    ".css",
+    ".html",
+    ".js",
+    ".json",
+    ".md",
+    ".ps1",
+    ".py",
+    ".txt",
+}
 
 
 def digest(path: Path) -> str:
@@ -14,6 +25,28 @@ def digest(path: Path) -> str:
         for chunk in iter(lambda: source.read(1024 * 1024), b""):
             checksum.update(chunk)
     return checksum.hexdigest()
+
+
+def validate_no_absolute_build_paths(staging: Path, files: list[Path]) -> None:
+    forbidden = {
+        str(staging.resolve()),
+        str(Path.cwd().resolve()),
+    }
+    variants = {
+        value
+        for path in forbidden
+        for value in (path, path.replace("\\", "/"))
+        if value
+    }
+    for path in files:
+        if path.suffix.lower() not in TEXT_SUFFIXES:
+            continue
+        content = path.read_text(encoding="utf-8", errors="ignore")
+        if any(value in content for value in variants):
+            raise ValueError(
+                f"Absolute Build-Pfade sind im Release nicht erlaubt: "
+                f"{path.relative_to(staging).as_posix()}"
+            )
 
 
 def main() -> int:
@@ -26,6 +59,7 @@ def main() -> int:
         and "__pycache__" not in path.parts
         and path.suffix not in {".pyc", ".pyo"}
     )
+    validate_no_absolute_build_paths(staging, files)
     checksum_path = staging / "checksums.txt"
     checksum_path.write_text(
         "".join(
@@ -48,6 +82,19 @@ def main() -> int:
     with zipfile.ZipFile(
         output, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9
     ) as archive:
+        directories = sorted(
+            path for path in staging.rglob("*") if path.is_dir()
+        )
+        root_info = zipfile.ZipInfo(
+            f"{staging.name}/", FIXED_TIME
+        )
+        root_info.external_attr = (0o40755 << 16) | 0x10
+        archive.writestr(root_info, b"")
+        for path in directories:
+            relative = path.relative_to(staging.parent).as_posix() + "/"
+            info = zipfile.ZipInfo(relative, FIXED_TIME)
+            info.external_attr = (0o40755 << 16) | 0x10
+            archive.writestr(info, b"")
         for path in files:
             relative = path.relative_to(staging.parent).as_posix()
             info = zipfile.ZipInfo(relative, FIXED_TIME)

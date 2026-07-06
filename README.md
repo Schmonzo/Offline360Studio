@@ -2,6 +2,8 @@
 
 Die aktuelle Produktversion wird ausschließlich in `core/version.py` gepflegt.
 App, Admin-Diagnose, Exporte, Backups und Release-Build lesen diese Quelle.
+Der sichtbare Header lädt `GET /api/version`; nur die Darstellung ergänzt
+konsistent ein `v`-Präfix. API-, Diagnose- und Artefaktwerte bleiben ohne Präfix.
 
 ## Stabilisierung und Windows-Betrieb
 
@@ -17,9 +19,17 @@ Schreibrechtstatus, Serverstatus und letzter Backup-Zeit. Der Bericht steht
 auch unter `GET /api/diagnostics/report` als JSON bereit.
 
 `start-panorama-studio.bat` arbeitet ohne Downloads oder automatische
-Installation. Das aktuelle Windows-ZIP ist ein Developer-Paket: Python 3 und
-die Pakete aus `requirements.txt` müssen vorhanden sein. Embedded Python oder
-ein Installer ist die nächste Etappe.
+Installation. Der Windows-Release kann in zwei Varianten gebaut werden:
+
+- `-Mode dev` (Standard) setzt Python 3 und die Pakete aus
+  `requirements.txt` auf dem Zielsystem voraus.
+- `-Mode standalone` enthält CPython 3.12.10 und alle Python-Abhängigkeiten.
+  Es ist keine Python-Installation nötig.
+
+Beide Varianten laufen nach dem Entpacken ohne CDN- oder Internetzugriffe.
+Im Standalone-Paket startet die Batchdatei ausschließlich
+`runtime\python\python.exe`; `data\`, `media\` und `logs\` liegen neben
+`app\` unter der Paketwurzel.
 
 ## Portabler Offline-Tour-Export
 
@@ -35,6 +45,7 @@ portable-tour/
   index.html
   tour.json
   README.txt
+  VERSION.txt
   start-tour.bat
   server.exe
   assets/
@@ -136,9 +147,29 @@ zeigt Branch und zentrale Version, führt Python-, JavaScript- und Go-Tests aus,
 baut und prüft `portable-server` und erzeugt ein deterministisches ZIP unter
 `build/release/`. Alle Laufzeitassets sind lokal.
 
-Bekannte v1.0-Risiken: Python ist noch nicht eingebettet, Browser-Codecs und
-WebGL sind systemabhängig, große Medien-/MBTiles-Bestände benötigen
-ausreichend temporären Speicher, und es gibt noch keinen Installer.
+```powershell
+# Standard: Developer-Paket
+powershell -ExecutionPolicy Bypass -File tools/release/build-release.ps1
+powershell -ExecutionPolicy Bypass -File tools/release/build-release.ps1 -Mode dev
+
+# Standalone-Paket mit Embedded Python
+powershell -ExecutionPolicy Bypass -File tools/release/build-release.ps1 -Mode standalone
+```
+
+Die Ausgaben heißen
+`PanoramaStudio-<version>-win64-dev.zip` beziehungsweise
+`PanoramaStudio-<version>-win64-standalone.zip`; daneben wird jeweils eine
+`.sha256`-Datei geschrieben. Der Standalone-Build lädt bei leerem Cache das
+offizielle CPython-3.12.10-Embeddable-ZIP, das geprüfte `get-pip.py` und die
+gepinnten Pakete aus `requirements.txt`. Downloads und pip werden nur beim
+Build verwendet. Runtime und Bootstrap werden vor ihrer Verwendung gegen die
+im Skript dokumentierten SHA-256-Werte geprüft. Verifizierte Dateien unter
+`tools/release/cache/` werden wiederverwendet und nicht versioniert.
+
+Bekannte Einschränkungen: Es gibt keinen Installer oder automatischen
+Updater. Browser-Codecs und WebGL sind systemabhängig; große
+Medien-/MBTiles-Bestände benötigen ausreichend temporären Speicher. Der
+Standalone-Build benötigt Windows x64 und bei leerem Cache Internetzugriff.
 
 Offline-Karten werden nur gesichert und beim Restore ersetzt, wenn
 `includes_maps` im Manifest `true` ist. Diese Option ist wegen der

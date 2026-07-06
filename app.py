@@ -18,26 +18,27 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 from PIL import Image
 
-from core import backup, diagnostics, gps, gpx, mbtiles, portable_export
+from core import backup, diagnostics, gps, gpx, mbtiles, portable_export, runtime_paths
 from core.migrations import LATEST_SCHEMA_VERSION, MigrationError, migrate
 from core.version import __version__
 
 BASE_DIR = Path(__file__).resolve().parent
 os.chdir(BASE_DIR)
 
-RUNTIME_ROOT = Path(os.environ.get("PANORAMA_STUDIO_RUNTIME_ROOT", BASE_DIR)).resolve()
-DATA_DIR = RUNTIME_ROOT / "data"
-CONFIG_DIR = DATA_DIR / "config"
-MEDIA_DIR = RUNTIME_ROOT / "media"
-PHOTO_DIR = MEDIA_DIR / "photos"
-VIDEO_DIR = MEDIA_DIR / "videos"
-THUMB_DIR = MEDIA_DIR / "thumbs"
-DB_PATH = DATA_DIR / "panorama_studio.db"
-MAPS_DIR = DATA_DIR / "maps"
+RUNTIME_PATHS = runtime_paths.build_runtime_paths(BASE_DIR)
+RUNTIME_ROOT = RUNTIME_PATHS.root
+DATA_DIR = RUNTIME_PATHS.data
+CONFIG_DIR = RUNTIME_PATHS.config
+MEDIA_DIR = RUNTIME_PATHS.media
+PHOTO_DIR = RUNTIME_PATHS.photos
+VIDEO_DIR = RUNTIME_PATHS.videos
+THUMB_DIR = RUNTIME_PATHS.thumbnails
+DB_PATH = RUNTIME_PATHS.database
+MAPS_DIR = RUNTIME_PATHS.maps
 PORTABLE_VIEWER_DIR = BASE_DIR / "portable_viewer"
 PORTABLE_SERVER_EXE = BASE_DIR / "tools" / "portable-server" / "server.exe"
-LOG_DIR = RUNTIME_ROOT / "logs"
-LOG_PATH = LOG_DIR / "panorama-studio.log"
+LOG_DIR = RUNTIME_PATHS.logs
+LOG_PATH = RUNTIME_PATHS.log_file
 
 PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 VIDEO_EXTENSIONS = {".mp4", ".m4v", ".mov"}
@@ -69,7 +70,16 @@ class DatabaseConnection(sqlite3.Connection):
 
 
 def ensure_dirs() -> None:
-    for path in [DATA_DIR, CONFIG_DIR, MAPS_DIR, PHOTO_DIR, VIDEO_DIR, THUMB_DIR]:
+    for path in [
+        DATA_DIR,
+        CONFIG_DIR,
+        MAPS_DIR,
+        MEDIA_DIR,
+        PHOTO_DIR,
+        VIDEO_DIR,
+        THUMB_DIR,
+        LOG_PATH.parent,
+    ]:
         path.mkdir(parents=True, exist_ok=True)
 
 
@@ -154,7 +164,9 @@ def startup_check() -> list[str]:
 
 
 def rel(path: Path) -> str:
-    return path.relative_to(BASE_DIR).as_posix()
+    # MEDIA_DIR.parent is the effective runtime root and remains compatible with
+    # tests and embedders that override the exported path constants.
+    return runtime_paths.relative_path(path, MEDIA_DIR.parent)
 
 
 def make_title(path: Path) -> str:
@@ -186,7 +198,11 @@ def create_photo_thumbnail(src: Path) -> str | None:
             canvas.save(thumb_path, "JPEG", quality=84)
         return rel(thumb_path)
     except Exception as exc:
-        print(f"Thumbnail-Fehler fuer {src}: {exc}")
+        app.logger.error(
+            "Thumbnail konnte nicht erzeugt werden (Datei=%s, Fehler=%s)",
+            src.name,
+            type(exc).__name__,
+        )
         return None
 
 
@@ -681,13 +697,20 @@ def index():
     return app.send_static_file("index.html")
 
 
+@app.route("/api/version")
+def api_version():
+    response = jsonify({"version": __version__})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.route("/api/diagnostics")
 def api_diagnostics():
     init_db()
     with db() as conn:
         report = diagnostics.build_report(
             conn,
-            base_dir=BASE_DIR,
+            base_dir=MEDIA_DIR.parent,
             database_path=DB_PATH,
             data_dir=DATA_DIR,
             media_dir=MEDIA_DIR,
@@ -1402,8 +1425,27 @@ def api_delete_hotspot(hotspot_id: int):
 
 @app.route("/api/rescan", methods=["POST"])
 def api_rescan():
-    result = scan_media()
-    return jsonify({"status": "ok", **result, "stats": stats_payload()})
+    if not MEDIA_DIR.is_dir():
+        app.logger.error("Rescan abgebrochen: Laufzeit-Medienordner fehlt")
+        return api_error(
+            "media_directory_missing",
+            "Der Medienordner fehlt. Bitte Panorama Studio neu starten.",
+            409,
+        )
+    try:
+        result = scan_media()
+        return jsonify({"status": "ok", **result, "stats": stats_payload()})
+    except (OSError, sqlite3.Error, ValueError) as exc:
+        app.logger.error(
+            "Rescan fehlgeschlagen (Fehler=%s, errno=%s)",
+            type(exc).__name__,
+            getattr(exc, "errno", None),
+        )
+        return api_error(
+            "rescan_failed",
+            "Der Medienordner konnte nicht eingelesen werden.",
+            500,
+        )
 
 
 @app.route("/api/gpx/import", methods=["POST"])
@@ -2057,29 +2099,47 @@ def api_update_media(media_id: int):
 @app.route("/api/upload", methods=["POST"])
 def api_upload():
     files = request.files.getlist("files")
-    project = (request.form.get("project") or "Default").strip() or "Default"
+    project = secure_filename(
+        (request.form.get("project") or "Default").strip()
+    ) or "Default"
     saved = 0
-    for file in files:
-        filename = secure_filename(file.filename or "")
-        if not filename:
-            continue
-        ext = Path(filename).suffix.lower()
-        if ext in PHOTO_EXTENSIONS:
-            target_dir = PHOTO_DIR / project
-        elif ext in VIDEO_EXTENSIONS:
-            target_dir = VIDEO_DIR / project
-        else:
-            continue
-        target_dir.mkdir(parents=True, exist_ok=True)
-        target = target_dir / filename
-        counter = 1
-        while target.exists():
-            target = target_dir / f"{Path(filename).stem}_{counter}{ext}"
-            counter += 1
-        file.save(target)
-        saved += 1
-    result = scan_media()
-    return jsonify({"status": "ok", "saved": saved, **result, "stats": stats_payload()})
+    try:
+        ensure_dirs()
+        for file in files:
+            filename = secure_filename(file.filename or "")
+            if not filename:
+                continue
+            ext = Path(filename).suffix.lower()
+            if ext in PHOTO_EXTENSIONS:
+                target_dir = PHOTO_DIR / project
+            elif ext in VIDEO_EXTENSIONS:
+                target_dir = VIDEO_DIR / project
+            else:
+                continue
+            target_dir.mkdir(parents=True, exist_ok=True)
+            target = target_dir / filename
+            counter = 1
+            while target.exists():
+                target = target_dir / f"{Path(filename).stem}_{counter}{ext}"
+                counter += 1
+            file.save(target)
+            saved += 1
+        result = scan_media()
+        return jsonify(
+            {"status": "ok", "saved": saved, **result, "stats": stats_payload()}
+        )
+    except (OSError, sqlite3.Error, ValueError) as exc:
+        app.logger.error(
+            "Upload fehlgeschlagen (gespeichert=%d, Fehler=%s, errno=%s)",
+            saved,
+            type(exc).__name__,
+            getattr(exc, "errno", None),
+        )
+        return api_error(
+            "upload_failed",
+            "Die Datei konnte nicht im Medienordner gespeichert werden.",
+            500,
+        )
 
 
 @app.route("/media/<path:filename>")

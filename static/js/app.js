@@ -55,6 +55,23 @@ applyUiState();
 function setStatus(message) { statusBox.textContent = 'Status: ' + message; }
 function mediaUrl(path) { return '/' + path; }
 
+async function loadAppVersion() {
+  const versionElement = document.getElementById('appVersion');
+  if (!versionElement) return;
+  try {
+    const response = await fetch('/api/version', { cache: 'no-store' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    if (typeof payload.version !== 'string' || !payload.version.trim()) {
+      throw new Error('Ungültige Versionsantwort');
+    }
+    versionElement.textContent = `v${payload.version}`;
+  } catch (error) {
+    versionElement.textContent = 'Version unbekannt';
+    console.warn('App-Version konnte nicht geladen werden:', error);
+  }
+}
+
 function callOptionalUi(apiName, methodName, ...args) {
   try {
     const result = window[apiName]?.[methodName]?.(...args);
@@ -281,22 +298,32 @@ function fillForm(item) {
 
 async function rescan() {
   setStatus('scannt...');
-  const res = await fetch('/api/rescan', { method: 'POST' });
-  const data = await res.json();
-  setStatus(`Scan fertig. Gefunden: ${data.found}, neu: ${data.inserted}, aktualisiert: ${data.updated}`);
-  await loadMedia();
+  try {
+    const res = await fetch('/api/rescan', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || 'Neu einlesen fehlgeschlagen.');
+    setStatus(`Scan fertig. Gefunden: ${data.found}, neu: ${data.inserted}, aktualisiert: ${data.updated}`);
+    await loadMedia();
+  } catch (error) {
+    setStatus(error.message || 'Neu einlesen fehlgeschlagen.');
+  }
 }
 
 async function uploadFiles(files) {
   if (!files.length) return;
   setStatus('Upload laeuft...');
-  const form = new FormData();
-  [...files].forEach(file => form.append('files', file));
-  form.append('project', document.getElementById('uploadProject').value || 'Default');
-  const res = await fetch('/api/upload', { method: 'POST', body: form });
-  const data = await res.json();
-  setStatus(`Upload fertig. Gespeichert: ${data.saved}, gefunden: ${data.found}`);
-  await loadMedia();
+  try {
+    const form = new FormData();
+    [...files].forEach(file => form.append('files', file));
+    form.append('project', document.getElementById('uploadProject').value || 'Default');
+    const res = await fetch('/api/upload', { method: 'POST', body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error?.message || 'Upload fehlgeschlagen.');
+    setStatus(`Upload fertig. Gespeichert: ${data.saved}, gefunden: ${data.found}`);
+    await loadMedia();
+  } catch (error) {
+    setStatus(error.message || 'Upload fehlgeschlagen.');
+  }
 }
 
 document.getElementById('rescanBtn').onclick = rescan;
@@ -348,4 +375,5 @@ editForm.onsubmit = async (e) => {
   await loadMedia();
 };
 
+loadAppVersion();
 loadMedia();

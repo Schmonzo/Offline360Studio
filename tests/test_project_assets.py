@@ -6,6 +6,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ProjectAssetTests(unittest.TestCase):
+    def test_header_loads_central_version_without_concrete_fallback(self) -> None:
+        page = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
+        source = (ROOT / "static" / "js" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('id="appVersion">Version unbekannt</span>', page)
+        self.assertIn("fetch('/api/version'", source)
+        self.assertIn("versionElement.textContent = `v${payload.version}`", source)
+
     def test_project_card_and_cover_preview_mount_points_exist(self) -> None:
         page = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
         self.assertIn('id="projectCardsSection"', page)

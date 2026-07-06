@@ -407,6 +407,10 @@ def create_archive(
             f"{ARCHIVE_ROOT}/README.txt",
             _readme(project["name"], total_size, map_payload is not None, map_type, warnings).encode("utf-8"),
         )
+        archive.writestr(
+            f"{ARCHIVE_ROOT}/VERSION.txt",
+            f"{EXPORT_VERSION}\n".encode("ascii"),
+        )
         for track in track_payload:
             archive.writestr(
                 f"{ARCHIVE_ROOT}/{track['path']}",

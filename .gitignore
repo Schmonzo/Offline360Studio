@@ -46,3 +46,10 @@ data/
 # ---------------------------------
 Thumbs.db
 Desktop.ini
+
+# ---------------------------------
+# Build artifacts
+# ---------------------------------
+/tools/release/cache/
+/build/cache/
+/build/release/
