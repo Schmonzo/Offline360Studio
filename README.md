@@ -1,5 +1,47 @@
 # Panorama Studio
 
+## Portabler Offline-Tour-Export (v0.9.0)
+
+Im Adminbereich erzeugt **Portable Tour exportieren** aus einem Projekt eine
+eigenständige ZIP-Datei. Sie enthält Projektdaten als `tour.json`, einen
+separaten statischen Viewer, lokale JavaScript-/CSS-Bibliotheken und die
+ausgewählten Medien, GPX-Tracks und MBTiles. Der Viewer verwendet weder Flask
+noch die Panorama-Studio-Datenbank und führt keine CDN-, API- oder sonstigen
+Netzwerkzugriffe aus.
+
+```text
+portable-tour/
+  index.html
+  tour.json
+  README.txt
+  start-tour.bat
+  server.exe
+  assets/
+    css/
+    js/
+    lib/
+    media/
+    thumbnails/
+    maps/
+    tracks/
+```
+
+Das direkte Öffnen von `index.html` über `file://` zeigt absichtlich einen
+Hinweis, weil Browser lokale `fetch()`- und Modulzugriffe blockieren.
+`start-tour.bat` startet die mitexportierte `server.exe`; der ausschließlich
+auf `127.0.0.1` gebundene Server wählt einen freien Port und öffnet danach
+den Standardbrowser. Die EXE wird reproduzierbar aus
+`tools/portable-server/` gebaut. Fehlt sie, bricht der Export mit einem
+Hinweis auf `build.ps1` ab. Beim Export erfolgen keine Downloads.
+
+Fotos, 360°-Videos, Startansichten, Panorama- und Info-Hotspots,
+Tiny Planet/Rabbit Hole, Galerie, Tastatursteuerung, GPS-Marker und
+GPX-Linien werden vom statischen Viewer unterstützt. Raster- und
+Vector-MBTiles werden einschließlich Metadaten exportiert. Der portable
+Server liefert Flat- und normalisierte MBTiles über lokale Endpunkte aus.
+Leaflet rendert Rasterkarten, MapLibre Vektorkarten; der lokale Vector-Stil
+verwendet keine externen Fonts, Glyphs, Sprites oder Styles.
+
 ## Offline-Karten
 
 Im Admin-Bereich lassen sich Raster-MBTiles (PNG, JPEG, WebP) und

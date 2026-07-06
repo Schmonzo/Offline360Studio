@@ -255,6 +255,40 @@
       <p id="offlineMapStatus" class="inline-status" role="status" aria-live="polite">Bereit.</p>
     </section>
 
+    <section class="portable-export-admin" aria-labelledby="portableExportTitle">
+      <h3 id="portableExportTitle">Portable Tour exportieren</h3>
+      <p>Eigenständige Offline-Tour mit statischem Viewer erzeugen.</p>
+      <form id="portableExportForm">
+        <label>Projekt auswählen
+          <select id="portableExportProject" required>
+            <option value="">Projekt auswählen</option>
+          </select>
+        </label>
+        <label>Dateiname
+          <input id="portableExportFilename" value="portable-tour" required />
+        </label>
+        <label class="check">
+          <input id="portableExportZip" type="checkbox" checked />
+          ZIP erstellen
+        </label>
+        <label class="check">
+          <input id="portableExportVideos" type="checkbox" checked />
+          Videos einschließen
+        </label>
+        <label class="check">
+          <input id="portableExportMap" type="checkbox" />
+          Offline-Karte einschließen
+        </label>
+        <label class="check">
+          <input id="portableExportTracks" type="checkbox" />
+          GPX-Tracks einschließen
+        </label>
+        <button id="portableExportBtn" type="submit">Tour exportieren</button>
+      </form>
+      <p id="portableExportStatus" class="portable-export-status" role="status" aria-live="polite">Bereit.</p>
+      <p id="portableExportError" class="form-error hidden" role="alert"></p>
+    </section>
+
     <section class="backup-admin" aria-labelledby="backupTitle">
       <h3 id="backupTitle">Backup &amp; Restore</h3>
       <p>Projekte, Zuordnungen, Hotspots, Startansichten und Einstellungen lokal als ZIP sichern.</p>
@@ -351,6 +385,7 @@
   <script src="/static/js/tinyplanet.js"></script>
   <script src="/static/js/viewer.js"></script>
   <script src="/static/js/admin.js"></script>
+  <script src="/static/js/portable_export.js"></script>
   <script src="/static/js/backup.js"></script>
   <script src="/static/js/map_sources.js"></script>
   <script src="/static/js/offline_maps.js"></script>

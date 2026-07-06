@@ -188,6 +188,14 @@ code { color: #ffd3b5; }
 .offline-map-warning { margin:4px 0 0; padding:7px 8px; border:1px solid #d18b36; border-radius:8px; color:#ffe0b8; background:rgba(209,139,54,.12); line-height:1.4; }
 .offline-map-rename { display:grid !important; grid-template-columns:minmax(0, 1fr) auto; align-items:end; }
 .offline-map-actions { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+.portable-export-admin { margin-top:18px; padding-top:18px; border-top:1px solid var(--line); }
+.portable-export-admin h3 { margin:0 0 8px; font-size:16px; }
+.portable-export-admin > p { margin:0 0 12px; color:var(--muted); font-size:13px; line-height:1.45; }
+.portable-export-admin form { display:flex; flex-direction:column; gap:10px; }
+.portable-export-admin label { display:flex; flex-direction:column; gap:6px; color:var(--muted); font-size:13px; }
+.portable-export-admin label.check { flex-direction:row; align-items:center; }
+.portable-export-admin input:not([type="checkbox"]), .portable-export-admin select { width:100%; padding:10px; border:1px solid var(--line); border-radius:12px; color:var(--text); background:#0f1116; }
+.portable-export-status { min-height:40px; margin:10px 0 0!important; padding:10px 12px; border:1px solid var(--line); border-radius:12px; color:var(--text)!important; background:#0f1116; overflow-wrap:anywhere; }
 .backup-maps-option { display:flex; flex-direction:row !important; align-items:flex-start; gap:8px; margin-top:10px; color:var(--muted); font-size:13px; }
 .backup-maps-option input { width:auto; margin-top:2px; }
 .backup-admin h3 { margin:0 0 8px; font-size:16px; }
