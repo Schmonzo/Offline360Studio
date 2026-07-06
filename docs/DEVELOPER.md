@@ -4,6 +4,9 @@
 
 `core/version.py` ist die einzige Produktversionsquelle. App, Diagnose,
 Exporter, Backup und Release-Build importieren beziehungsweise lesen sie.
+`GET /api/version` liefert den unveränderten Wert an den App-Header; das
+Frontend ergänzt ausschließlich für die Anzeige ein `v`-Präfix. Bei einem
+fehlgeschlagenen Abruf zeigt der Header keine konkrete Fallback-Version.
 Das Datenbankschema liegt unter `core/migrations/`; `migrate()` legt
 `schema_migrations` an und führt jede offene Migration in einer eigenen
 Transaktion aus. Migrationen sind additiv, idempotent und datenerhaltend.
@@ -99,6 +102,7 @@ portable-tour/
   index.html
   tour.json
   README.txt
+  VERSION.txt
   start-tour.bat
   server.exe
   assets/

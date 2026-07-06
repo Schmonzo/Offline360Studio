@@ -8,6 +8,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
+from core.version import __version__
 from tools.release.package_release import digest, main
 
 
@@ -71,6 +72,14 @@ class ReleaseModeContractTests(unittest.TestCase):
             "f9dc9e95e68824584c8099a63025a3c3",
             self.source,
         )
+
+    def test_release_version_file_uses_central_version(self) -> None:
+        self.assertIn(
+            'from core.version import __version__; print(__version__)',
+            self.source,
+        )
+        self.assertIn('Set-Content "$Stage\\VERSION.txt" $Version', self.source)
+        self.assertTrue(__version__)
 
 
 class ReleaseRepositoryContractTests(unittest.TestCase):

@@ -2,6 +2,8 @@
 
 Die aktuelle Produktversion wird ausschließlich in `core/version.py` gepflegt.
 App, Admin-Diagnose, Exporte, Backups und Release-Build lesen diese Quelle.
+Der sichtbare Header lädt `GET /api/version`; nur die Darstellung ergänzt
+konsistent ein `v`-Präfix. API-, Diagnose- und Artefaktwerte bleiben ohne Präfix.
 
 ## Stabilisierung und Windows-Betrieb
 
@@ -43,6 +45,7 @@ portable-tour/
   index.html
   tour.json
   README.txt
+  VERSION.txt
   start-tour.bat
   server.exe
   assets/

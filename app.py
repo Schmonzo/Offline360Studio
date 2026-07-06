@@ -681,6 +681,13 @@ def index():
     return app.send_static_file("index.html")
 
 
+@app.route("/api/version")
+def api_version():
+    response = jsonify({"version": __version__})
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.route("/api/diagnostics")
 def api_diagnostics():
     init_db()
