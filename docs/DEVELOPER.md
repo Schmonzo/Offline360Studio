@@ -33,8 +33,13 @@ python tools/smoke_test.py
 ```
 
 Der Release-Build testet Python, JavaScript und Go, baut und verifiziert den
-lokalen Go-Server und erzeugt ein deterministisches Developer-ZIP. Der
-Smoke-Test startet die echte App auf einem freien Port mit temporärer
+lokalen Go-Server in einem temporären Ausgabeverzeichnis und erzeugt ein
+deterministisches Developer-ZIP unter `build/release/`. Die Ausgabe ist
+ignoriert; der Build verändert keine versionierten Dateien und hält den
+Arbeitsbaum sauber. Die für den portablen Tour-Export benötigten
+`tools/portable-server/server.exe` und `server.exe.sha256` bleiben versioniert,
+werden vom Release-Build aber nicht überschrieben. Der Smoke-Test startet die
+echte App auf einem freien Port mit temporärer
 Laufzeitwurzel und prüft Startseite, Projekte, Diagnose, Backup und Portable
 Export.
 
@@ -113,9 +118,12 @@ zeigt `index.html` nur den Start-Hinweis.
 Der Go-Quellcode liegt unter `tools/portable-server/`. Der Server verwendet
 für HTTP ausschließlich die Standardbibliothek und für SQLite
 `modernc.org/sqlite v1.53.0` (BSD-3-Clause; SQLite-Anteile Public Domain).
-Die Abhängigkeit ist CGO-frei. `build.ps1` führt Modultidy und Tests aus,
-setzt `CGO_ENABLED=0`, baut eine Windows-amd64-EXE mit `-trimpath` und
-entfernten Debugsymbolen und schreibt `server.exe.sha256`.
+Die Abhängigkeit ist CGO-frei. `build.ps1` prüft das Modul unverändert mit
+`-mod=readonly`, führt Tests aus, setzt `CGO_ENABLED=0`, baut eine
+Windows-amd64-EXE mit `-trimpath` und entfernten Debugsymbolen und schreibt
+`server.exe.sha256`. Mit `-OutDir <path>` werden EXE und Hash außerhalb des
+Quellordners erzeugt; `-Tidy` führt bei bewusster Abhängigkeitspflege vorab
+`go mod tidy` aus.
 
 Der Exporter kopiert ausschließlich
 `tools/portable-server/server.exe` zusammen mit `server.exe.sha256`. Der Hash

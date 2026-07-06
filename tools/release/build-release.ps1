@@ -2,6 +2,7 @@ $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
+$TemporaryBuildDir = $null
 Push-Location $Repo
 try {
     $Dirty = git status --porcelain
@@ -25,14 +26,19 @@ try {
     }
     Push-Location "tools/portable-server"
     try {
-        go test ./...
+        go test -mod=readonly ./...
         if ($LASTEXITCODE -ne 0) { throw "Go-Tests fehlgeschlagen." }
     } finally { Pop-Location }
-    & "tools/portable-server/build.ps1"
+
+    $TemporaryBuildDir = Join-Path ([IO.Path]::GetTempPath()) ("panorama-studio-release-" + [guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $TemporaryBuildDir | Out-Null
+    & "tools/portable-server/build.ps1" -OutDir $TemporaryBuildDir
     if ($LASTEXITCODE -ne 0) { throw "portable-server Build fehlgeschlagen." }
 
-    $ExpectedHash = ((Get-Content "tools/portable-server/server.exe.sha256" -Raw).Split()[0]).ToLowerInvariant()
-    $ActualHash = (Get-FileHash "tools/portable-server/server.exe" -Algorithm SHA256).Hash.ToLowerInvariant()
+    $TemporaryServer = Join-Path $TemporaryBuildDir "server.exe"
+    $TemporaryServerHash = Join-Path $TemporaryBuildDir "server.exe.sha256"
+    $ExpectedHash = ((Get-Content $TemporaryServerHash -Raw).Split()[0]).ToLowerInvariant()
+    $ActualHash = (Get-FileHash $TemporaryServer -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($ExpectedHash -ne $ActualHash) { throw "portable-server SHA-256 stimmt nicht." }
 
     $BuildRoot = Join-Path $Repo "build\release"
@@ -44,15 +50,18 @@ try {
         throw "Unsicherer Release-Staging-Pfad: $ResolvedStage"
     }
     if (Test-Path $Stage) { Remove-Item -LiteralPath $Stage -Recurse -Force }
-    New-Item -ItemType Directory -Force -Path "$Stage\app", "$Stage\data", "$Stage\media", "$Stage\LICENSES" | Out-Null
+    New-Item -ItemType Directory -Force -Path "$Stage\app\tools", "$Stage\data", "$Stage\media", "$Stage\LICENSES" | Out-Null
 
     $AppItems = @(
-        "app.py", "core", "static", "portable_viewer", "tools/portable-server",
+        "app.py", "core", "static", "portable_viewer",
         "requirements.txt", "README.md", "docs", "LICENSE"
     )
     foreach ($Item in $AppItems) {
         Copy-Item -LiteralPath $Item -Destination "$Stage\app" -Recurse -Force
     }
+    Copy-Item -LiteralPath "tools/portable-server" -Destination "$Stage\app\tools" -Recurse -Force
+    Copy-Item -LiteralPath $TemporaryServer -Destination "$Stage\app\tools\portable-server\server.exe" -Force
+    Copy-Item -LiteralPath $TemporaryServerHash -Destination "$Stage\app\tools\portable-server\server.exe.sha256" -Force
     Copy-Item "start-panorama-studio.bat" "$Stage\start-panorama-studio.bat"
     Copy-Item "LICENSE" "$Stage\LICENSES\PanoramaStudio.txt"
     Copy-Item "static\lib\three.LICENSE.txt" "$Stage\LICENSES\three.txt"
@@ -68,8 +77,22 @@ Dieses Paket installiert nichts und lädt keine Komponenten nach.
 Eine eingebettete Python-Runtime ist für die nächste Stabilisierungsetappe geplant.
 "@ | Set-Content "$Stage\README.txt" -Encoding utf8
 
-    python "tools/release/package_release.py" $Stage (Join-Path $BuildRoot "$PackageName.zip")
+    $ZipPath = Join-Path $BuildRoot "$PackageName.zip"
+    python "tools/release/package_release.py" $Stage $ZipPath
     if ($LASTEXITCODE -ne 0) { throw "ZIP-Erstellung fehlgeschlagen." }
+
+    $TrackedChanges = git status --porcelain --untracked-files=no
+    if ($LASTEXITCODE -ne 0) { throw "Git-Status konnte nach dem Build nicht gelesen werden." }
+    if ($TrackedChanges) {
+        throw "Der Release-Build hat versionierte Dateien verändert:`n$($TrackedChanges -join "`n")"
+    }
+
+    $ZipHash = (Get-FileHash -LiteralPath $ZipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    Write-Host "Release-ZIP: $ZipPath"
+    Write-Host "SHA-256: $ZipHash"
 } finally {
+    if ($TemporaryBuildDir -and (Test-Path -LiteralPath $TemporaryBuildDir)) {
+        Remove-Item -LiteralPath $TemporaryBuildDir -Recurse -Force
+    }
     Pop-Location
 }
