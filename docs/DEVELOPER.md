@@ -238,7 +238,7 @@ Panorama Studio ist eine lokale Offline-Anwendung zur Präsentation und Verwaltu
 ## Lokaler Start
 
 ```powershell
-cd C:\PanoramaStudioRepo
+cd C:\path\to\PanoramaStudio
 python app.py
 ```
 
