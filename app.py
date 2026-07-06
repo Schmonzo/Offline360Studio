@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 import math
 import os
+import logging
 import sqlite3
 import tempfile
 import threading
 import time
 import webbrowser
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any
 
@@ -15,14 +18,17 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 from PIL import Image
 
-from core import backup, gps, gpx, mbtiles, portable_export
+from core import backup, diagnostics, gps, gpx, mbtiles, portable_export
+from core.migrations import LATEST_SCHEMA_VERSION, MigrationError, migrate
+from core.version import __version__
 
 BASE_DIR = Path(__file__).resolve().parent
 os.chdir(BASE_DIR)
 
-DATA_DIR = BASE_DIR / "data"
+RUNTIME_ROOT = Path(os.environ.get("PANORAMA_STUDIO_RUNTIME_ROOT", BASE_DIR)).resolve()
+DATA_DIR = RUNTIME_ROOT / "data"
 CONFIG_DIR = DATA_DIR / "config"
-MEDIA_DIR = BASE_DIR / "media"
+MEDIA_DIR = RUNTIME_ROOT / "media"
 PHOTO_DIR = MEDIA_DIR / "photos"
 VIDEO_DIR = MEDIA_DIR / "videos"
 THUMB_DIR = MEDIA_DIR / "thumbs"
@@ -30,6 +36,8 @@ DB_PATH = DATA_DIR / "panorama_studio.db"
 MAPS_DIR = DATA_DIR / "maps"
 PORTABLE_VIEWER_DIR = BASE_DIR / "portable_viewer"
 PORTABLE_SERVER_EXE = BASE_DIR / "tools" / "portable-server" / "server.exe"
+LOG_DIR = RUNTIME_ROOT / "logs"
+LOG_PATH = LOG_DIR / "panorama-studio.log"
 
 PHOTO_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 VIDEO_EXTENSIONS = {".mp4", ".m4v", ".mov"}
@@ -38,6 +46,7 @@ MAX_START_FOV = math.radians(165)
 
 app = Flask(__name__, static_folder="static", static_url_path="/static")
 app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024 * 1024  # 25 GB
+app.config["VERSION"] = __version__
 DATA_OPERATION_LOCK = threading.RLock()
 
 
@@ -80,237 +89,68 @@ def db() -> sqlite3.Connection:
         raise
 
 
-def ensure_column(conn: sqlite3.Connection, table: str, column: str, ddl: str) -> None:
-    cols = [row[1] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()]
-    if column not in cols:
-        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {ddl}")
-
-
 def init_db() -> None:
     ensure_dirs()
     with db() as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS media (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                type TEXT NOT NULL,
-                file_path TEXT NOT NULL UNIQUE,
-                thumb_path TEXT,
-                title TEXT NOT NULL,
-                project TEXT DEFAULT 'Default',
-                category TEXT DEFAULT '',
-                description TEXT DEFAULT '',
-                favorite INTEGER DEFAULT 0,
-                visible INTEGER DEFAULT 1,
-                start_yaw REAL NULL,
-                start_pitch REAL NULL,
-                start_fov REAL NULL,
-                captured_at REAL NULL,
-                latitude REAL NULL,
-                longitude REAL NULL,
-                altitude REAL NULL,
-                gps_source TEXT NULL,
-                gps_updated_at REAL NULL,
-                created_at REAL,
-                updated_at REAL
-            )
-            """
-        )
-        ensure_column(conn, "media", "category", "TEXT DEFAULT ''")
-        ensure_column(conn, "media", "start_yaw", "REAL NULL")
-        ensure_column(conn, "media", "start_pitch", "REAL NULL")
-        ensure_column(conn, "media", "start_fov", "REAL NULL")
-        ensure_column(conn, "media", "captured_at", "REAL NULL")
-        ensure_column(conn, "media", "latitude", "REAL NULL")
-        ensure_column(conn, "media", "longitude", "REAL NULL")
-        ensure_column(conn, "media", "altitude", "REAL NULL")
-        ensure_column(conn, "media", "gps_source", "TEXT NULL")
-        ensure_column(conn, "media", "gps_updated_at", "REAL NULL")
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS projects (
-                id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL,
-                description TEXT DEFAULT '',
-                cover_media_id INTEGER NULL,
-                start_media_id INTEGER NULL,
-                created_at REAL NOT NULL,
-                updated_at REAL NOT NULL,
-                FOREIGN KEY (cover_media_id) REFERENCES media(id) ON DELETE SET NULL,
-                FOREIGN KEY (start_media_id) REFERENCES media(id) ON DELETE SET NULL
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS project_media (
-                project_id INTEGER NOT NULL,
-                media_id INTEGER NOT NULL,
-                sort_order INTEGER NOT NULL DEFAULT 0,
-                PRIMARY KEY (project_id, media_id),
-                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-                FOREIGN KEY (media_id) REFERENCES media(id) ON DELETE CASCADE
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_project_media_project_sort
-            ON project_media(project_id, sort_order)
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS hotspots (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                source_media_id INTEGER NOT NULL,
-                action_type TEXT NOT NULL CHECK (action_type IN ('panorama', 'info')),
-                yaw REAL NOT NULL,
-                pitch REAL NOT NULL,
-                title TEXT DEFAULT '',
-                info_text TEXT DEFAULT '',
-                target_media_id INTEGER,
-                visible INTEGER DEFAULT 1,
-                created_at REAL NOT NULL,
-                updated_at REAL NOT NULL,
-                FOREIGN KEY (source_media_id) REFERENCES media(id) ON DELETE CASCADE,
-                FOREIGN KEY (target_media_id) REFERENCES media(id) ON DELETE SET NULL
-            )
-            """
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_hotspots_source_media_id ON hotspots(source_media_id)"
-        )
-        conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_hotspots_target_media_id ON hotspots(target_media_id)"
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS gpx_tracks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL,
-                project_id INTEGER NULL,
-                original_filename TEXT NOT NULL,
-                imported_at REAL NOT NULL,
-                point_count INTEGER NOT NULL,
-                FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE SET NULL
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS gpx_points (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                track_id INTEGER NOT NULL,
-                sequence INTEGER NOT NULL,
-                latitude REAL NOT NULL,
-                longitude REAL NOT NULL,
-                elevation REAL NULL,
-                recorded_at REAL NULL,
-                FOREIGN KEY (track_id) REFERENCES gpx_tracks(id) ON DELETE CASCADE
-            )
-            """
-        )
-        conn.execute(
-            """
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_gpx_points_track_sequence
-            ON gpx_points(track_id, sequence)
-            """
-        )
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS map_sources (
-                id INTEGER PRIMARY KEY,
-                name TEXT NOT NULL,
-                filename TEXT NOT NULL UNIQUE,
-                format TEXT NOT NULL,
-                map_type TEXT NOT NULL DEFAULT 'raster'
-                    CHECK (map_type IN ('raster', 'vector')),
-                schema_type TEXT NOT NULL DEFAULT 'flat'
-                    CHECK (schema_type IN ('flat', 'normalized')),
-                min_zoom INTEGER NULL,
-                max_zoom INTEGER NULL,
-                bounds TEXT NULL,
-                center TEXT NULL,
-                vector_layers TEXT NOT NULL DEFAULT '[]',
-                attribution TEXT DEFAULT '',
-                active INTEGER NOT NULL DEFAULT 0,
-                imported_at REAL NOT NULL
-            )
-            """
-        )
-        ensure_column(
-            conn,
-            "map_sources",
-            "schema_type",
-            "TEXT NOT NULL DEFAULT 'flat' "
-            "CHECK (schema_type IN ('flat', 'normalized'))",
-        )
-        ensure_column(
-            conn,
-            "map_sources",
-            "map_type",
-            "TEXT NOT NULL DEFAULT 'raster' "
-            "CHECK (map_type IN ('raster', 'vector'))",
-        )
-        raster_formats = ", ".join(
-            f"'{tile_format}'" for tile_format in sorted(mbtiles.RASTER_FORMATS)
-        )
-        vector_formats = ", ".join(
-            f"'{tile_format}'" for tile_format in sorted(mbtiles.VECTOR_FORMATS)
-        )
-        conn.execute(
-            f"""
-            UPDATE map_sources
-            SET map_type = CASE
-                WHEN lower(format) IN ({raster_formats}) THEN 'raster'
-                WHEN lower(format) IN ({vector_formats}) THEN 'vector'
-                ELSE map_type
-            END
-            """
-        )
-        ensure_column(conn, "map_sources", "center", "TEXT NULL")
-        ensure_column(
-            conn, "map_sources", "vector_layers", "TEXT NOT NULL DEFAULT '[]'"
-        )
-        conn.execute(
-            """
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_map_sources_single_active
-            ON map_sources(active) WHERE active = 1
-            """
-        )
-        for operation, clause in (
-            ("insert", "INSERT"),
-            (
-                "update",
-                "UPDATE OF latitude, longitude, altitude, gps_source",
-            ),
+        migrate(conn)
+
+
+def configure_logging(log_path: Path | None = None) -> RotatingFileHandler:
+    target = log_path or LOG_PATH
+    target.parent.mkdir(parents=True, exist_ok=True)
+    for handler in app.logger.handlers:
+        if isinstance(handler, RotatingFileHandler) and getattr(
+            handler, "_panorama_studio", False
         ):
-            conn.execute(
-                f"""
-                CREATE TRIGGER IF NOT EXISTS validate_media_gps_{operation}
-                BEFORE {clause} ON media
-                BEGIN
-                    SELECT CASE WHEN NEW.latitude IS NOT NULL AND (
-                        typeof(NEW.latitude) NOT IN ('real', 'integer')
-                        OR NEW.latitude < -90 OR NEW.latitude > 90
-                    ) THEN RAISE(ABORT, 'invalid latitude') END;
-                    SELECT CASE WHEN NEW.longitude IS NOT NULL AND (
-                        typeof(NEW.longitude) NOT IN ('real', 'integer')
-                        OR NEW.longitude < -180 OR NEW.longitude > 180
-                    ) THEN RAISE(ABORT, 'invalid longitude') END;
-                    SELECT CASE WHEN NEW.altitude IS NOT NULL AND (
-                        typeof(NEW.altitude) NOT IN ('real', 'integer')
-                        OR NEW.altitude < -1.7976931348623157e308
-                        OR NEW.altitude > 1.7976931348623157e308
-                    ) THEN RAISE(ABORT, 'invalid altitude') END;
-                    SELECT CASE WHEN NEW.gps_source IS NOT NULL
-                        AND NEW.gps_source NOT IN ('exif', 'gpx', 'manual')
-                    THEN RAISE(ABORT, 'invalid gps_source') END;
-                END
-                """
-            )
-        conn.commit()
+            return handler
+    handler = RotatingFileHandler(
+        target,
+        maxBytes=5 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
+    )
+    handler._panorama_studio = True
+    handler.setFormatter(
+        logging.Formatter(
+            "%(asctime)s %(levelname)s %(name)s %(message)s",
+            datefmt="%Y-%m-%dT%H:%M:%S",
+        )
+    )
+    app.logger.addHandler(handler)
+    app.logger.setLevel(logging.INFO)
+    logging.getLogger("core").addHandler(handler)
+    logging.getLogger("core").setLevel(logging.INFO)
+    return handler
+
+
+def startup_check() -> list[str]:
+    warnings = []
+    configure_logging()
+    app.logger.info("Panorama Studio %s startet", __version__)
+    try:
+        ensure_dirs()
+        init_db()
+        for label, directory in (("Daten", DATA_DIR), ("Medien", MEDIA_DIR)):
+            handle, probe = tempfile.mkstemp(prefix=".startup-", dir=directory)
+            os.close(handle)
+            Path(probe).unlink()
+            print(f"[OK] {label}verzeichnis ist beschreibbar.")
+        with db() as conn:
+            conn.execute("SELECT 1").fetchone()
+        print(f"[OK] Datenbank bereit, Schema-Version {LATEST_SCHEMA_VERSION}.")
+    except (OSError, sqlite3.Error, MigrationError) as exc:
+        app.logger.exception("Kritischer Fehler bei der Startprüfung")
+        raise RuntimeError(f"Kritische Startprüfung fehlgeschlagen: {exc}") from exc
+
+    server_status = portable_export.server_hash_status(PORTABLE_SERVER_EXE)
+    if server_status["sha256_valid"]:
+        print("[OK] portable-server SHA-256 ist gültig.")
+    else:
+        warning = f"portable-server: {server_status['status']}"
+        warnings.append(warning)
+        app.logger.warning("%s", warning)
+        print(f"[WARNUNG] {warning}")
+    return warnings
 
 
 def rel(path: Path) -> str:
@@ -839,6 +679,37 @@ def validate_start_view(data: dict[str, Any]):
 @app.route("/")
 def index():
     return app.send_static_file("index.html")
+
+
+@app.route("/api/diagnostics")
+def api_diagnostics():
+    init_db()
+    with db() as conn:
+        report = diagnostics.build_report(
+            conn,
+            base_dir=BASE_DIR,
+            database_path=DB_PATH,
+            data_dir=DATA_DIR,
+            media_dir=MEDIA_DIR,
+            server_executable=PORTABLE_SERVER_EXE,
+            log_path=LOG_PATH,
+        )
+    return jsonify(report)
+
+
+@app.route("/api/diagnostics/report")
+def api_diagnostics_report():
+    response = api_diagnostics()
+    payload = response.get_json()
+    return Response(
+        json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+        mimetype="application/json",
+        headers={
+            "Content-Disposition": "attachment; filename=panorama-studio-diagnostics.json",
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @app.route("/api/media")
@@ -1746,6 +1617,11 @@ def api_map_source_import():
                     (source_id,),
                 ).fetchone()
                 conn.commit()
+        app.logger.info(
+            "Kartenquelle importiert (Typ=%s, Format=%s)",
+            metadata.map_type,
+            metadata.format,
+        )
         return jsonify({"item": map_source_payload(row)}), 201
     except mbtiles.MBTilesError as exc:
         return api_error(exc.code, exc.message, exc.status)
@@ -2003,6 +1879,11 @@ def api_backup_export():
                 maps_dir=MAPS_DIR,
                 includes_maps=payload.get("includes_maps", False),
             )
+            app.logger.info(
+                "Backup erstellt (Medien=%s, Karten=%s)",
+                payload["includes_media"],
+                payload.get("includes_maps", False),
+            )
 
         def stream_archive():
             try:
@@ -2087,6 +1968,7 @@ def api_portable_tour_export():
                 static_dir=app.static_folder and Path(app.static_folder) or BASE_DIR / "static",
                 server_executable=PORTABLE_SERVER_EXE,
             )
+        app.logger.info("Portable Tour exportiert (Projekt-ID=%d)", payload["project_id"])
 
         def stream_archive():
             try:
@@ -2143,6 +2025,7 @@ def api_backup_import():
                     DATA_DIR / "backups",
                     maps_dir=MAPS_DIR,
                 )
+            app.logger.info("Backup wiederhergestellt")
             return jsonify(result)
         except backup.BackupError as exc:
             return api_error(exc.code, exc.message, exc.status)
@@ -2210,11 +2093,17 @@ def serve_thumb(filename: str):
 
 
 if __name__ == "__main__":
-    init_db()
-    url = "http://127.0.0.1:5000"
-    print(f"Panorama Studio laeuft: {url}")
     try:
-        webbrowser.open(url)
-    except Exception:
-        pass
-    app.run(host="127.0.0.1", port=5000, debug=False)
+        startup_check()
+    except RuntimeError as exc:
+        print(f"[FEHLER] {exc}")
+        raise SystemExit(1) from exc
+    port = int(os.environ.get("PANORAMA_STUDIO_PORT", "5000"))
+    url = f"http://127.0.0.1:{port}"
+    print(f"Panorama Studio {__version__} läuft: {url}")
+    if os.environ.get("PANORAMA_STUDIO_NO_BROWSER") != "1":
+        try:
+            webbrowser.open(url)
+        except Exception:
+            pass
+    app.run(host="127.0.0.1", port=port, debug=False)

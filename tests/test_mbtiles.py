@@ -210,6 +210,7 @@ class MBTilesApiTests(unittest.TestCase):
                         'png', 0, 1)
                 """
             )
+            conn.execute("DELETE FROM schema_migrations WHERE version >= 2")
             conn.commit()
         panorama_app.init_db()
         panorama_app.init_db()
