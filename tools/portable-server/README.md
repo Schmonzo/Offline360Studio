@@ -66,7 +66,7 @@ Der Server bietet statische Dateien sowie folgende ausschließlich aus
 - `golang.org/x/sys v0.44.0`: BSD-3-Clause
 - `github.com/google/pprof`: Apache-2.0
 - `github.com/google/uuid v1.6.0`: BSD-3-Clause
-- `github.com/dustin/go-humanize v1.0.1`: MIT
+- `github.com/dustin/go-humanize v<version>`: MIT
 - `github.com/mattn/go-isatty v0.0.20`: MIT
 - `github.com/ncruces/go-strftime aktuelle Panorama-Studio-Version`: MIT
 - `github.com/remyoudompheng/bigfft`: BSD-3-Clause
