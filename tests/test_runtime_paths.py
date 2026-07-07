@@ -108,6 +108,44 @@ class RuntimePathTests(unittest.TestCase):
                 "media_directory_missing",
             )
 
+    def test_upload_accepts_multiple_media_files_in_one_request(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            data = root / "data"
+            media = root / "media"
+            with patch.multiple(
+                panorama_app,
+                RUNTIME_ROOT=root,
+                DATA_DIR=data,
+                CONFIG_DIR=data / "config",
+                MAPS_DIR=data / "maps",
+                MEDIA_DIR=media,
+                PHOTO_DIR=media / "photos",
+                VIDEO_DIR=media / "videos",
+                THUMB_DIR=media / "thumbs",
+                DB_PATH=data / "panorama_studio.db",
+                LOG_DIR=root / "logs",
+                LOG_PATH=root / "logs" / "panorama-studio.log",
+            ):
+                panorama_app.app.config["TESTING"] = True
+                response = panorama_app.app.test_client().post(
+                    "/api/upload",
+                    data={
+                        "project": "Batch Upload",
+                        "files": [
+                            (io.BytesIO(PNG_1X1), "pano.png"),
+                            (io.BytesIO(b"video"), "clip.mp4"),
+                        ],
+                    },
+                    content_type="multipart/form-data",
+                )
+            self.assertEqual(response.status_code, 200, response.get_data(as_text=True))
+            payload = response.get_json()
+            self.assertEqual(payload["saved"], 2)
+            self.assertEqual(payload["found"], 2)
+            self.assertTrue((media / "photos" / "Batch_Upload" / "pano.png").is_file())
+            self.assertTrue((media / "videos" / "Batch_Upload" / "clip.mp4").is_file())
+
     def test_upload_reports_runtime_directory_error_as_json(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

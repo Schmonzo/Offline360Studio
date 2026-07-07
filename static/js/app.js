@@ -398,20 +398,31 @@ async function rescan() {
 }
 
 async function uploadFiles(files) {
-  if (!files.length) return;
+  const selectedFiles = [...files];
+  renderUploadPreview(selectedFiles);
+  if (!selectedFiles.length) return;
   setStatus('Upload laeuft...');
   try {
     const form = new FormData();
-    [...files].forEach(file => form.append('files', file));
+    selectedFiles.forEach(file => form.append('files', file));
     form.append('project', document.getElementById('uploadProject').value || 'Default');
     const res = await fetch('/api/upload', { method: 'POST', body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error?.message || 'Upload fehlgeschlagen.');
     setStatus(`Upload fertig. Gespeichert: ${data.saved}, gefunden: ${data.found}`);
+    fileInput.value = '';
+    renderUploadPreview([]);
     await loadMedia();
   } catch (error) {
     setStatus(error.message || 'Upload fehlgeschlagen.');
   }
+}
+
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 document.getElementById('rescanBtn').onclick = rescan;
@@ -453,6 +464,21 @@ gridViewBtn.onclick = () => { viewMode = 'grid'; localStorage.setItem('ps_view_m
 
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('fileInput');
+const uploadFilePreview = document.getElementById('uploadFilePreview');
+function renderUploadPreview(files) {
+  if (!uploadFilePreview) return;
+  uploadFilePreview.replaceChildren();
+  uploadFilePreview.classList.toggle('hidden', files.length === 0);
+  files.forEach(file => {
+    const item = document.createElement('li');
+    const name = document.createElement('span');
+    const meta = document.createElement('small');
+    name.textContent = file.name;
+    meta.textContent = formatFileSize(file.size);
+    item.append(name, meta);
+    uploadFilePreview.appendChild(item);
+  });
+}
 fileInput.onchange = () => uploadFiles(fileInput.files);
 ['dragenter','dragover'].forEach(evt => dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.add('dragover'); }));
 ['dragleave','drop'].forEach(evt => dropZone.addEventListener(evt, e => { e.preventDefault(); dropZone.classList.remove('dragover'); }));

@@ -161,6 +161,7 @@
             <span>JPG, PNG, MP4 · automatisch ins Upload-Projekt</span>
             <input id="fileInput" type="file" multiple accept="image/*,video/mp4,video/quicktime" />
           </div>
+          <ul id="uploadFilePreview" class="upload-file-preview hidden" aria-live="polite"></ul>
           <form id="editForm" class="edit-form">
             <label>Titel<input id="editTitle" /></label>
             <label>Projekt<input id="editProject" /></label>
@@ -202,9 +203,10 @@
                 <div id="projectCoverPreview" class="project-cover-preview"></div>
               </div>
               <div class="project-media-add">
-                <select id="projectMediaSelect" aria-label="Medium hinzufügen"></select>
+                <select id="projectMediaSelect" multiple size="6" aria-label="Medien hinzufügen" aria-describedby="projectMediaSelectHelp"></select>
                 <button id="addProjectMediaBtn" type="button">Hinzufügen</button>
               </div>
+              <p id="projectMediaSelectHelp" class="project-media-help">Mehrere Medien mit Strg oder Shift auswählen.</p>
               <ol id="projectMediaList" class="project-media-list"></ol>
             </div>
           </div>

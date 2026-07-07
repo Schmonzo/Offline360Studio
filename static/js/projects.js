@@ -271,7 +271,7 @@ function setProjectPending(pending) {
   projectRequestPending = pending;
   saveProjectBtn.disabled = pending;
   deleteProjectBtn.disabled = pending || !editedProject;
-  addProjectMediaBtn.disabled = pending || !editedProject || !projectMediaSelect.value;
+  addProjectMediaBtn.disabled = pending || !editedProject || selectedProjectMediaIds().length === 0;
   projectMediaList.querySelectorAll('button').forEach(button => {
     button.disabled = pending;
   });
@@ -283,14 +283,20 @@ function setProjectPending(pending) {
 
 function renderAvailableMedia() {
   const assigned = new Set((editedProject?.media || []).map(item => item.id));
-  projectMediaSelect.replaceChildren(option('', 'Medium auswählen'));
+  projectMediaSelect.replaceChildren();
   projectMediaItems
     .filter(item => !assigned.has(item.id))
     .forEach(item => {
       const type = item.type === 'photo' ? 'Foto' : 'Video';
       projectMediaSelect.appendChild(option(item.id, `${item.title || item.file_path} (${type})`));
     });
-  addProjectMediaBtn.disabled = projectRequestPending || !editedProject || !projectMediaSelect.value;
+  addProjectMediaBtn.disabled = projectRequestPending || !editedProject || selectedProjectMediaIds().length === 0;
+}
+
+function selectedProjectMediaIds() {
+  return Array.from(projectMediaSelect.selectedOptions)
+    .map(item => Number(item.value))
+    .filter(mediaId => Number.isInteger(mediaId) && mediaId > 0);
 }
 
 function projectMediaButton(label, title, action, active = false) {
@@ -450,17 +456,20 @@ async function deleteProject() {
 }
 
 async function addProjectMedia() {
-  const mediaId = Number(projectMediaSelect.value);
-  if (!editedProject || !mediaId || projectRequestPending) return;
+  const mediaIds = selectedProjectMediaIds();
+  if (!editedProject || mediaIds.length === 0 || projectRequestPending) return;
+  const projectId = editedProject.id;
   setProjectPending(true);
   setProjectError();
   try {
-    const data = await projectRequest(`/api/projects/${editedProject.id}/media`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ media_id: mediaId })
-    });
-    updateProjectState(data.item);
+    for (const mediaId of mediaIds) {
+      const data = await projectRequest(`/api/projects/${projectId}/media`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ media_id: mediaId })
+      });
+      updateProjectState(data.item);
+    }
   } catch (error) {
     setProjectError(error.message);
   } finally {
@@ -553,7 +562,7 @@ adminProjectSelect.addEventListener('change', async () => {
 projectForm.addEventListener('submit', saveProject);
 deleteProjectBtn.addEventListener('click', deleteProject);
 projectMediaSelect.addEventListener('change', () => {
-  addProjectMediaBtn.disabled = projectRequestPending || !editedProject || !projectMediaSelect.value;
+  addProjectMediaBtn.disabled = projectRequestPending || !editedProject || selectedProjectMediaIds().length === 0;
 });
 addProjectMediaBtn.addEventListener('click', addProjectMedia);
 document.addEventListener('keydown', event => {
