@@ -68,7 +68,7 @@ Der Server bietet statische Dateien sowie folgende ausschließlich aus
 - `github.com/google/uuid v1.6.0`: BSD-3-Clause
 - `github.com/dustin/go-humanize v1.0.1`: MIT
 - `github.com/mattn/go-isatty v0.0.20`: MIT
-- `github.com/ncruces/go-strftime v1.0.0`: MIT
+- `github.com/ncruces/go-strftime aktuelle Panorama-Studio-Version`: MIT
 - `github.com/remyoudompheng/bigfft`: BSD-3-Clause
 - Der in `modernc.org/sqlite` portierte SQLite-Code: Public Domain
 
