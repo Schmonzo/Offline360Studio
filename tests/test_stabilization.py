@@ -204,6 +204,17 @@ class ReleaseAndSmokeContractTests(unittest.TestCase):
         self.assertIn("git status --porcelain", script)
         self.assertIn("Git-Arbeitsbaum ist nicht sauber", script)
 
+    def test_release_test_steps_are_labeled(self) -> None:
+        script = (ROOT / "tools" / "release" / "build-release.ps1").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('Invoke-NamedStep "Python tests..." "Python tests OK"', script)
+        self.assertIn(
+            'Invoke-NamedStep "JavaScript checks..." "JavaScript checks OK"',
+            script,
+        )
+        self.assertIn('Invoke-NamedStep "Go tests..." "Go tests OK"', script)
+
     def test_smoke_test_uses_temporary_runtime_root(self) -> None:
         source = (ROOT / "tools" / "smoke_test.py").read_text(encoding="utf-8")
         self.assertIn("TemporaryDirectory", source)
