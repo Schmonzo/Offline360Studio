@@ -6,18 +6,32 @@ import os
 import sqlite3
 import tempfile
 import unittest
-from contextlib import closing
+from contextlib import closing, contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
 import app as panorama_app
 from core import runtime_paths
+from flask.logging import default_handler
 
 
 PNG_1X1 = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
     "YAAAAAYAAjCB0C8AAAAASUVORK5CYII="
 )
+
+
+@contextmanager
+def without_flask_console_handler():
+    logger = panorama_app.app.logger
+    removed = default_handler in logger.handlers
+    if removed:
+        logger.removeHandler(default_handler)
+    try:
+        yield
+    finally:
+        if removed:
+            logger.addHandler(default_handler)
 
 
 class RuntimePathTests(unittest.TestCase):
@@ -89,23 +103,35 @@ class RuntimePathTests(unittest.TestCase):
                 self.assertEqual(response.get_json()["found"], 2)
 
                 handler = panorama_app.configure_logging(log_path)
-                panorama_app.app.logger.info("runtime path test")
-                handler.flush()
-                self.assertTrue(log_path.is_file())
-                panorama_app.app.logger.removeHandler(handler)
-                __import__("logging").getLogger("core").removeHandler(handler)
-                handler.close()
+                try:
+                    with without_flask_console_handler():
+                        panorama_app.app.logger.info("runtime path test")
+                    handler.flush()
+                    self.assertTrue(log_path.is_file())
+                    self.assertIn(
+                        "runtime path test",
+                        log_path.read_text(encoding="utf-8"),
+                    )
+                finally:
+                    panorama_app.app.logger.removeHandler(handler)
+                    __import__("logging").getLogger("core").removeHandler(handler)
+                    handler.close()
 
     def test_rescan_reports_missing_media_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             media = Path(temporary) / "missing-media"
             with patch.object(panorama_app, "MEDIA_DIR", media):
                 panorama_app.app.config["TESTING"] = True
-                response = panorama_app.app.test_client().post("/api/rescan")
+                with self.assertLogs(panorama_app.app.logger, level="ERROR") as logs:
+                    response = panorama_app.app.test_client().post("/api/rescan")
             self.assertEqual(response.status_code, 409)
             self.assertEqual(
                 response.get_json()["error"]["code"],
                 "media_directory_missing",
+            )
+            self.assertIn(
+                "Rescan abgebrochen: Laufzeit-Medienordner fehlt",
+                "\n".join(logs.output),
             )
 
     def test_upload_accepts_multiple_media_files_in_one_request(self) -> None:
@@ -163,16 +189,21 @@ class RuntimePathTests(unittest.TestCase):
                 LOG_PATH=root / "logs" / "panorama-studio.log",
             ):
                 panorama_app.app.config["TESTING"] = True
-                response = panorama_app.app.test_client().post(
-                    "/api/upload",
-                    data={
-                        "files": (io.BytesIO(PNG_1X1), "pano.png"),
-                    },
-                    content_type="multipart/form-data",
-                )
+                with self.assertLogs(panorama_app.app.logger, level="ERROR") as logs:
+                    response = panorama_app.app.test_client().post(
+                        "/api/upload",
+                        data={
+                            "files": (io.BytesIO(PNG_1X1), "pano.png"),
+                        },
+                        content_type="multipart/form-data",
+                    )
             self.assertEqual(response.status_code, 500)
             self.assertEqual(response.mimetype, "application/json")
             self.assertEqual(response.get_json()["error"]["code"], "upload_failed")
+            self.assertIn(
+                "Upload fehlgeschlagen (gespeichert=0, Fehler=FileExistsError, errno=17)",
+                "\n".join(logs.output),
+            )
 
 
 if __name__ == "__main__":

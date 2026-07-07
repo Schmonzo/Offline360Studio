@@ -36,6 +36,17 @@ function Invoke-External {
     }
 }
 
+function Invoke-NamedStep {
+    param(
+        [Parameter(Mandatory = $true)][string]$StartMessage,
+        [Parameter(Mandatory = $true)][string]$SuccessMessage,
+        [Parameter(Mandatory = $true)][scriptblock]$Action
+    )
+    Write-Host $StartMessage
+    & $Action
+    Write-Host $SuccessMessage
+}
+
 function Get-VerifiedDownload {
     param(
         [Parameter(Mandatory = $true)][string]$Url,
@@ -126,14 +137,20 @@ try {
     Write-Host "Version: $Version"
     Write-Host "Modus: $Mode"
 
-    Invoke-External python -m unittest discover -s tests
-    foreach ($Script in @("static/js/app.js", "static/js/admin.js", "static/js/portable_export.js")) {
-        Invoke-External node --check $Script
+    Invoke-NamedStep "Python tests..." "Python tests OK" {
+        Invoke-External python -m unittest discover -s tests
     }
-    Push-Location "tools/portable-server"
-    try {
-        Invoke-External go test -mod=readonly ./...
-    } finally { Pop-Location }
+    Invoke-NamedStep "JavaScript checks..." "JavaScript checks OK" {
+        foreach ($Script in @("static/js/app.js", "static/js/admin.js", "static/js/portable_export.js")) {
+            Invoke-External node --check $Script
+        }
+    }
+    Invoke-NamedStep "Go tests..." "Go tests OK" {
+        Push-Location "tools/portable-server"
+        try {
+            Invoke-External go test -mod=readonly ./...
+        } finally { Pop-Location }
+    }
 
     $TemporaryBuildDir = Join-Path ([IO.Path]::GetTempPath()) ("panorama-studio-release-" + [guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $TemporaryBuildDir | Out-Null
