@@ -30,6 +30,18 @@ class ProjectAssetTests(unittest.TestCase):
         self.assertIn("name.textContent = project.name", source)
         self.assertNotIn(".innerHTML", source)
 
+    def test_project_media_assignment_supports_multiple_selection(self) -> None:
+        page = (ROOT / "static" / "index.html").read_text(encoding="utf-8")
+        source = (ROOT / "static" / "js" / "projects.js").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('id="projectMediaSelect" multiple', page)
+        self.assertIn("Strg oder Shift", page)
+        self.assertIn("selectedProjectMediaIds()", source)
+        self.assertIn("projectMediaSelect.selectedOptions", source)
+        self.assertIn("for (const mediaId of mediaIds)", source)
+        self.assertIn("JSON.stringify({ media_id: mediaId })", source)
+
     def test_project_cards_have_visible_focus_and_responsive_rules(self) -> None:
         styles = (ROOT / "static" / "css" / "style.css").read_text(
             encoding="utf-8"

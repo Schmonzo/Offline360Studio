@@ -33,6 +33,8 @@
   const TRACK_SOURCE = 'panorama-gpx';
   const TRACK_LAYER = 'panorama-gpx-lines';
   const HIDDEN_TRACKS_STORAGE_KEY = 'ps_hidden_gpx_track_ids';
+  const MAP_VIEW_STORAGE_KEY = 'ps_main_map_view';
+  const DEFAULT_MAP_VIEW = { center: [0, 20], zoom: 2 };
 
   let map = null;
   let rendererType = null;
@@ -46,10 +48,48 @@
   let tracks = [];
   let trackFeatures = [];
   let rendererGeneration = 0;
-  let lastView = { center: [0, 20], zoom: 2 };
+  const storedMapView = loadStoredMapView();
+  let lastView = storedMapView || { ...DEFAULT_MAP_VIEW };
+  let hasStoredMapView = Boolean(storedMapView);
   const projectNames = new Map();
   const visibleTrackIds = new Set();
   const hiddenTrackIds = loadHiddenTrackIds();
+
+  function validMapView(view) {
+    return (
+      view
+      && Array.isArray(view.center)
+      && view.center.length === 2
+      && Number.isFinite(view.center[0])
+      && Number.isFinite(view.center[1])
+      && view.center[0] >= -180
+      && view.center[0] <= 180
+      && view.center[1] >= -90
+      && view.center[1] <= 90
+      && Number.isFinite(view.zoom)
+      && view.zoom >= 0
+      && view.zoom <= 30
+    );
+  }
+
+  function loadStoredMapView() {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem(MAP_VIEW_STORAGE_KEY) || 'null');
+      return validMapView(stored) ? stored : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function storeMapView(view) {
+    if (!validMapView(view)) return;
+    hasStoredMapView = true;
+    try {
+      sessionStorage.setItem(MAP_VIEW_STORAGE_KEY, JSON.stringify(view));
+    } catch (_error) {
+      // The in-memory view still preserves state for this app session.
+    }
+  }
 
   function loadHiddenTrackIds() {
     try {
@@ -114,9 +154,16 @@
         center: [center.lng, center.lat],
         zoom: map.getZoom()
       };
+      storeMapView(lastView);
     } catch (_error) {
       // A renderer can be removed while its style is still loading.
     }
+  }
+
+  function installViewPersistence() {
+    if (!map) return;
+    map.on('moveend', rememberView);
+    map.on('zoomend', rememberView);
   }
 
   function destroyRenderer() {
@@ -147,6 +194,7 @@
     markerLayer = L.featureGroup().addTo(map);
     trackLayer = L.featureGroup().addTo(map);
     map.setView([lastView.center[1], lastView.center[0]], lastView.zoom);
+    installViewPersistence();
   }
 
   function mapLibreGeoJson(features) {
@@ -266,6 +314,7 @@
       transformRequest: mapLibreTransformRequest
     });
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-left');
+    installViewPersistence();
     map.on('load', () => {
       if (generation !== rendererGeneration || rendererType !== 'vector') return;
       installMapLibreOverlays();
@@ -668,7 +717,7 @@
     }
   }
 
-  async function refreshMap() {
+  async function refreshMap({ fit = true } = {}) {
     try {
       if (mapMode) await loadActiveMapSource();
       const data = await jsonRequest(apiUrl('/api/map/media'));
@@ -677,7 +726,7 @@
       await loadTracks();
       if (mapMode) {
         resizeMap();
-        fitContent();
+        if (fit) fitContent();
       }
     } catch (error) {
       setStatus(gpxStatus, error.message, true);
@@ -713,15 +762,16 @@
 
   async function setMapMode(enabled) {
     mapMode = enabled;
+    const restoreExistingView = hasStoredMapView;
     window.appUiState?.setMapViewActive(enabled);
     modeButton.textContent = enabled ? 'Viewer' : 'Karte';
     modeButton.setAttribute('aria-pressed', String(enabled));
     if (enabled) {
       await loadActiveMapSource();
-      await refreshMap();
+      await refreshMap({ fit: !restoreExistingView });
       requestAnimationFrame(() => {
         resizeMap();
-        fitContent();
+        if (!restoreExistingView) fitContent();
       });
     }
   }
