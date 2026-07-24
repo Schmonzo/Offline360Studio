@@ -1,12 +1,12 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
-RUNTIME_ROOT_ENV = "PANORAMA_STUDIO_RUNTIME_ROOT"
-DATABASE_FILENAME = "panorama_studio.db"
-LOG_FILENAME = "panorama-studio.log"
+RUNTIME_ROOT_ENV = "OFFLINE360_STUDIO_RUNTIME_ROOT"
+DATABASE_FILENAME = "OFFLINE360_STUDIO.db"
+LOG_FILENAME = "offline360-studio.log"
 
 
 @dataclass(frozen=True)
@@ -91,3 +91,4 @@ def build_runtime_paths(app_dir: Path | None = None) -> RuntimePaths:
         database=database_path(root),
         log_file=logs / LOG_FILENAME,
     )
+

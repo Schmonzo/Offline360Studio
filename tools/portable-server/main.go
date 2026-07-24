@@ -78,7 +78,7 @@ type apiError struct {
 }
 
 func main() {
-	port := flag.Int("port", 0, "TCP-Port (0 wählt automatisch einen freien Port)")
+	port := flag.Int("port", 0, "TCP-Port (0 wÃ¤hlt automatisch einen freien Port)")
 	root := flag.String("root", "", "Webroot (Standard: Verzeichnis von server.exe)")
 	flag.Parse()
 
@@ -105,11 +105,11 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 	url := "http://" + listener.Addr().String() + "/"
-	fmt.Printf("Panorama Studio Portable Tour: %s\n", url)
-	fmt.Println("Zum Beenden Strg+C drücken.")
+	fmt.Printf("Offline360 Studio Portable Tour: %s\n", url)
+	fmt.Println("Zum Beenden Strg+C drÃ¼cken.")
 	go func() {
 		if err := openBrowser(url); err != nil {
-			log.Printf("Browser konnte nicht automatisch geöffnet werden: %v", err)
+			log.Printf("Browser konnte nicht automatisch geÃ¶ffnet werden: %v", err)
 		}
 	}()
 
@@ -117,7 +117,7 @@ func main() {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-stop
-		fmt.Println("\nServer wird beendet …")
+		fmt.Println("\nServer wird beendet â€¦")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
@@ -140,11 +140,11 @@ func resolveWebroot(value string) (string, error) {
 	}
 	absolute, err := filepath.Abs(value)
 	if err != nil {
-		return "", fmt.Errorf("Webroot ist ungültig: %w", err)
+		return "", fmt.Errorf("Webroot ist ungÃ¼ltig: %w", err)
 	}
 	resolved, err := filepath.EvalSymlinks(absolute)
 	if err != nil {
-		return "", fmt.Errorf("Webroot ist nicht verfügbar: %w", err)
+		return "", fmt.Errorf("Webroot ist nicht verfÃ¼gbar: %w", err)
 	}
 	info, err := os.Stat(resolved)
 	if err != nil || !info.IsDir() {
@@ -167,7 +167,7 @@ func listen(port int) (net.Listener, error) {
 
 func openBrowser(url string) error {
 	if runtime.GOOS != "windows" {
-		return fmt.Errorf("automatischer Browserstart ist nur unter Windows verfügbar")
+		return fmt.Errorf("automatischer Browserstart ist nur unter Windows verfÃ¼gbar")
 	}
 	return exec.Command("rundll32", "url.dll,FileProtocolHandler", url).Start()
 }
@@ -229,11 +229,11 @@ func (h *portableHandler) serveStatic(w http.ResponseWriter, r *http.Request) {
 
 func (h *portableHandler) secureFile(requestPath, requiredPrefix string) (string, error) {
 	if requestPath == "" || strings.Contains(requestPath, "\\") || strings.ContainsRune(requestPath, '\x00') {
-		return "", errors.New("ungültiger Pfad")
+		return "", errors.New("ungÃ¼ltiger Pfad")
 	}
 	for _, segment := range strings.Split(requestPath, "/") {
 		if segment == ".." {
-			return "", errors.New("Pfad verlässt Webroot")
+			return "", errors.New("Pfad verlÃ¤sst Webroot")
 		}
 	}
 	cleaned := slashpath.Clean("/" + strings.TrimPrefix(requestPath, "/"))
@@ -247,12 +247,12 @@ func (h *portableHandler) secureFile(requestPath, requiredPrefix string) (string
 		return "", err
 	}
 	if !pathInside(resolved, h.root) {
-		return "", errors.New("Symlink verlässt Webroot")
+		return "", errors.New("Symlink verlÃ¤sst Webroot")
 	}
 	if requiredPrefix != "" {
 		prefixRoot, err := filepath.EvalSymlinks(filepath.Join(h.root, filepath.FromSlash(strings.TrimSuffix(requiredPrefix, "/"))))
 		if err != nil || !pathInside(resolved, prefixRoot) {
-			return "", errors.New("Pfad verlässt erlaubtes Kartenverzeichnis")
+			return "", errors.New("Pfad verlÃ¤sst erlaubtes Kartenverzeichnis")
 		}
 	}
 	return resolved, nil
@@ -295,17 +295,17 @@ func (h *portableHandler) loadMap() (*mapConfig, string, error) {
 	var tour tourConfig
 	decoder := json.NewDecoder(io.LimitReader(file, 4*1024*1024))
 	if err := decoder.Decode(&tour); err != nil {
-		return nil, "", fmt.Errorf("tour.json ist ungültig")
+		return nil, "", fmt.Errorf("tour.json ist ungÃ¼ltig")
 	}
 	if tour.MapSource == nil || tour.MapSource.Path == "" {
 		return nil, "", os.ErrNotExist
 	}
 	if filepath.IsAbs(tour.MapSource.Path) || strings.Contains(tour.MapSource.Path, "\\") {
-		return nil, "", errors.New("Kartenpfad ist ungültig")
+		return nil, "", errors.New("Kartenpfad ist ungÃ¼ltig")
 	}
 	mapPath, err := h.secureFile("/"+tour.MapSource.Path, "assets/maps/")
 	if err != nil || strings.ToLower(filepath.Ext(mapPath)) != ".mbtiles" {
-		return nil, "", errors.New("Kartenpfad ist ungültig")
+		return nil, "", errors.New("Kartenpfad ist ungÃ¼ltig")
 	}
 	return tour.MapSource, mapPath, nil
 }
@@ -348,7 +348,7 @@ func (h *portableHandler) serveMapMetadata(w http.ResponseWriter, r *http.Reques
 
 func writeMapLoadError(w http.ResponseWriter, err error) {
 	if errors.Is(err, os.ErrNotExist) {
-		writeAPIError(w, http.StatusNotFound, "map_not_configured", "Diese Tour enthält keine Offline-Karte.")
+		writeAPIError(w, http.StatusNotFound, "map_not_configured", "Diese Tour enthÃ¤lt keine Offline-Karte.")
 		return
 	}
 	writeAPIError(w, http.StatusNotFound, "map_unavailable", err.Error())
@@ -357,19 +357,19 @@ func writeMapLoadError(w http.ResponseWriter, err error) {
 func parseTilePath(value string) (int, int, int, error) {
 	parts := strings.Split(strings.TrimPrefix(value, "/api/maps/tiles/"), "/")
 	if len(parts) != 3 {
-		return 0, 0, 0, errors.New("ungültige Kachelkoordinaten")
+		return 0, 0, 0, errors.New("ungÃ¼ltige Kachelkoordinaten")
 	}
 	values := make([]int, 3)
 	for index, part := range parts {
 		number, err := strconv.Atoi(part)
 		if err != nil || number < 0 {
-			return 0, 0, 0, errors.New("ungültige Kachelkoordinaten")
+			return 0, 0, 0, errors.New("ungÃ¼ltige Kachelkoordinaten")
 		}
 		values[index] = number
 	}
 	z, x, y := values[0], values[1], values[2]
 	if z > maxZoom || int64(x) >= int64(1)<<uint(z) || int64(y) >= int64(1)<<uint(z) {
-		return 0, 0, 0, errors.New("Kachelkoordinaten außerhalb des gültigen Bereichs")
+		return 0, 0, 0, errors.New("Kachelkoordinaten auÃŸerhalb des gÃ¼ltigen Bereichs")
 	}
 	return z, x, y, nil
 }
@@ -394,7 +394,7 @@ func (h *portableHandler) serveMapTile(w http.ResponseWriter, r *http.Request) {
 	}
 	db, err := openMapDatabase(mapPath)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "map_open_failed", "Die MBTiles-Datei konnte nicht geöffnet werden.")
+		writeAPIError(w, http.StatusInternalServerError, "map_open_failed", "Die MBTiles-Datei konnte nicht geÃ¶ffnet werden.")
 		return
 	}
 	defer db.Close()
@@ -409,7 +409,7 @@ func (h *portableHandler) serveMapTile(w http.ResponseWriter, r *http.Request) {
 	}
 	contentType, vector := tileContentType(config.Format)
 	if contentType == "" {
-		writeAPIError(w, http.StatusUnsupportedMediaType, "map_format_unsupported", "Das Kartenformat wird nicht unterstützt.")
+		writeAPIError(w, http.StatusUnsupportedMediaType, "map_format_unsupported", "Das Kartenformat wird nicht unterstÃ¼tzt.")
 		return
 	}
 	w.Header().Set("Content-Type", contentType)
@@ -503,12 +503,12 @@ func (h *portableHandler) serveMapStyle(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if config.MapType != "vector" {
-		writeAPIError(w, http.StatusNotFound, "style_not_available", "Für Rasterkarten ist kein MapLibre-Stil erforderlich.")
+		writeAPIError(w, http.StatusNotFound, "style_not_available", "FÃ¼r Rasterkarten ist kein MapLibre-Stil erforderlich.")
 		return
 	}
 	db, err := openMapDatabase(mapPath)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, "map_open_failed", "Die MBTiles-Datei konnte nicht geöffnet werden.")
+		writeAPIError(w, http.StatusInternalServerError, "map_open_failed", "Die MBTiles-Datei konnte nicht geÃ¶ffnet werden.")
 		return
 	}
 	defer db.Close()
@@ -572,3 +572,4 @@ func mergeLayer(base, values map[string]any) map[string]any {
 	}
 	return result
 }
+

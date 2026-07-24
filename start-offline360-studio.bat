@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 setlocal
 cd /d "%~dp0"
 
@@ -18,16 +18,17 @@ if not defined PYTHON_EXE (
   exit /b 1
 )
 
-echo Starte Panorama Studio...
-set "PANORAMA_STUDIO_RUNTIME_ROOT=%CD%"
+echo Starte Offline360 Studio...
+set "OFFLINE360_STUDIO_RUNTIME_ROOT=%CD%"
 set "APP_ENTRY=app.py"
 if exist "app\app.py" set "APP_ENTRY=app\app.py"
 %PYTHON_EXE% "%APP_ENTRY%"
 if errorlevel 1 (
   echo.
-  echo FEHLER: Panorama Studio wurde mit einem Fehler beendet.
-  echo Details stehen, soweit verfuegbar, in logs\panorama-studio.log.
+  echo FEHLER: Offline360 Studio wurde mit einem Fehler beendet.
+  echo Details stehen, soweit verfuegbar, in logs\offline360-studio.log.
   pause
   exit /b 1
 )
 endlocal
+

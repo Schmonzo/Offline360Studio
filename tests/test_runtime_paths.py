@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import base64
 import io
@@ -48,14 +48,14 @@ class RuntimePathTests(unittest.TestCase):
             self.assertEqual(paths.media, root / "media")
             self.assertEqual(paths.thumbnails, root / "media" / "thumbs")
             self.assertEqual(paths.logs, root / "logs")
-            self.assertEqual(paths.database, root / "data" / "panorama_studio.db")
+            self.assertEqual(paths.database, root / "data" / "OFFLINE360_STUDIO.db")
 
     def test_upload_rescan_database_and_log_use_runtime_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             data = root / "data"
             media = root / "media"
-            log_path = root / "logs" / "panorama-studio.log"
+            log_path = root / "logs" / "offline360-studio.log"
             with patch.multiple(
                 panorama_app,
                 RUNTIME_ROOT=root,
@@ -66,7 +66,7 @@ class RuntimePathTests(unittest.TestCase):
                 PHOTO_DIR=media / "photos",
                 VIDEO_DIR=media / "videos",
                 THUMB_DIR=media / "thumbs",
-                DB_PATH=data / "panorama_studio.db",
+                DB_PATH=data / "OFFLINE360_STUDIO.db",
                 LOG_DIR=root / "logs",
                 LOG_PATH=log_path,
             ):
@@ -85,8 +85,8 @@ class RuntimePathTests(unittest.TestCase):
                 photo = media / "photos" / "Runtime_Test" / "pano.png"
                 self.assertTrue(photo.is_file())
                 self.assertTrue((media / "thumbs" / "pano.jpg").is_file())
-                self.assertTrue((data / "panorama_studio.db").is_file())
-                with closing(sqlite3.connect(data / "panorama_studio.db")) as conn:
+                self.assertTrue((data / "OFFLINE360_STUDIO.db").is_file())
+                with closing(sqlite3.connect(data / "OFFLINE360_STUDIO.db")) as conn:
                     stored_path, thumbnail = conn.execute(
                         "SELECT file_path, thumb_path FROM media"
                     ).fetchone()
@@ -149,9 +149,9 @@ class RuntimePathTests(unittest.TestCase):
                 PHOTO_DIR=media / "photos",
                 VIDEO_DIR=media / "videos",
                 THUMB_DIR=media / "thumbs",
-                DB_PATH=data / "panorama_studio.db",
+                DB_PATH=data / "OFFLINE360_STUDIO.db",
                 LOG_DIR=root / "logs",
-                LOG_PATH=root / "logs" / "panorama-studio.log",
+                LOG_PATH=root / "logs" / "offline360-studio.log",
             ):
                 panorama_app.app.config["TESTING"] = True
                 response = panorama_app.app.test_client().post(
@@ -186,7 +186,7 @@ class RuntimePathTests(unittest.TestCase):
                 PHOTO_DIR=blocked_photo_dir,
                 VIDEO_DIR=root / "media" / "videos",
                 THUMB_DIR=root / "media" / "thumbs",
-                LOG_PATH=root / "logs" / "panorama-studio.log",
+                LOG_PATH=root / "logs" / "offline360-studio.log",
             ):
                 panorama_app.app.config["TESTING"] = True
                 with self.assertLogs(panorama_app.app.logger, level="ERROR") as logs:
@@ -208,3 +208,4 @@ class RuntimePathTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

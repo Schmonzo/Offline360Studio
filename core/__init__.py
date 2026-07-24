@@ -1,1 +1,2 @@
-"""Core services for Panorama Studio."""
+﻿"""Core services for Offline360 Studio."""
+

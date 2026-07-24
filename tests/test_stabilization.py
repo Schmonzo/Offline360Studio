@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import hashlib
 import io
@@ -104,10 +104,10 @@ class DiagnosticsAndRuntimeTests(unittest.TestCase):
             PHOTO_DIR=media / "photos",
             VIDEO_DIR=media / "videos",
             THUMB_DIR=media / "thumbs",
-            DB_PATH=data / "panorama_studio.db",
+            DB_PATH=data / "OFFLINE360_STUDIO.db",
             MAPS_DIR=data / "maps",
             PORTABLE_SERVER_EXE=server,
-            LOG_PATH=root / "logs" / "panorama-studio.log",
+            LOG_PATH=root / "logs" / "offline360-studio.log",
         )
         self.patch.start()
         panorama_app.init_db()
@@ -127,9 +127,9 @@ class DiagnosticsAndRuntimeTests(unittest.TestCase):
         response = client.get("/api/diagnostics")
         self.assertEqual(response.status_code, 200)
         report = response.get_json()
-        self.assertEqual(report["panorama_studio_version"], __version__)
+        self.assertEqual(report["OFFLINE360_STUDIO_version"], __version__)
         self.assertEqual(
-            report["panorama_studio_version"],
+            report["OFFLINE360_STUDIO_version"],
             version_response.get_json()["version"],
         )
         self.assertEqual(report["schema_version"], LATEST_SCHEMA_VERSION)
@@ -168,7 +168,7 @@ class BackupHardeningTests(unittest.TestCase):
             maps = data / "maps"
             for directory in (config, media, maps):
                 directory.mkdir(parents=True)
-            database = data / "panorama_studio.db"
+            database = data / "OFFLINE360_STUDIO.db"
             conn = sqlite3.connect(database)
             try:
                 migrate(conn)
@@ -218,9 +218,10 @@ class ReleaseAndSmokeContractTests(unittest.TestCase):
     def test_smoke_test_uses_temporary_runtime_root(self) -> None:
         source = (ROOT / "tools" / "smoke_test.py").read_text(encoding="utf-8")
         self.assertIn("TemporaryDirectory", source)
-        self.assertIn("PANORAMA_STUDIO_RUNTIME_ROOT", source)
+        self.assertIn("OFFLINE360_STUDIO_RUNTIME_ROOT", source)
         self.assertIn("/api/diagnostics", source)
 
 
 if __name__ == "__main__":
     unittest.main()
+

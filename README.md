@@ -1,43 +1,43 @@
-# Panorama Studio
+﻿# Offline360 Studio
 
-Die aktuelle Produktversion wird ausschließlich in `core/version.py` gepflegt.
+Die aktuelle Produktversion wird ausschlieÃŸlich in `core/version.py` gepflegt.
 App, Admin-Diagnose, Exporte, Backups und Release-Build lesen diese Quelle.
-Der sichtbare Header lädt `GET /api/version`; nur die Darstellung ergänzt
-konsistent ein `v`-Präfix. API-, Diagnose- und Artefaktwerte bleiben ohne Präfix.
+Der sichtbare Header lÃ¤dt `GET /api/version`; nur die Darstellung ergÃ¤nzt
+konsistent ein `v`-PrÃ¤fix. API-, Diagnose- und Artefaktwerte bleiben ohne PrÃ¤fix.
 
 ## Stabilisierung und Windows-Betrieb
 
 Beim Start werden Daten- und Medienverzeichnisse, Schreibrechte, Datenbank,
-Migrationen und der SHA-256-Hash des portablen Servers geprüft. Kritische
-Fehler beenden den Start verständlich; ein fehlender portabler Server erzeugt
+Migrationen und der SHA-256-Hash des portablen Servers geprÃ¼ft. Kritische
+Fehler beenden den Start verstÃ¤ndlich; ein fehlender portabler Server erzeugt
 eine Warnung. Strukturierte Logs rotieren unter
-`logs/panorama-studio.log` (5 × 5 MiB).
+`logs/offline360-studio.log` (5 Ã— 5 MiB).
 
 Der Adminbereich bietet eine Systemdiagnose mit Laufzeitversionen,
-Schema-Version, gekürzten Pfaden, Speicherplatz, Objektzählern,
+Schema-Version, gekÃ¼rzten Pfaden, Speicherplatz, ObjektzÃ¤hlern,
 Schreibrechtstatus, Serverstatus und letzter Backup-Zeit. Der Bericht steht
 auch unter `GET /api/diagnostics/report` als JSON bereit.
 
-`start-panorama-studio.bat` arbeitet ohne Downloads oder automatische
+`start-offline360-studio.bat` arbeitet ohne Downloads oder automatische
 Installation. Der Windows-Release kann in zwei Varianten gebaut werden:
 
 - `-Mode dev` (Standard) setzt Python 3 und die Pakete aus
   `requirements.txt` auf dem Zielsystem voraus.
-- `-Mode standalone` enthält CPython 3.12.10 und alle Python-Abhängigkeiten.
-  Es ist keine Python-Installation nötig.
+- `-Mode standalone` enthÃ¤lt CPython 3.12.10 und alle Python-AbhÃ¤ngigkeiten.
+  Es ist keine Python-Installation nÃ¶tig.
 
 Beide Varianten laufen nach dem Entpacken ohne CDN- oder Internetzugriffe.
-Im Standalone-Paket startet die Batchdatei ausschließlich
+Im Standalone-Paket startet die Batchdatei ausschlieÃŸlich
 `runtime\python\python.exe`; `data\`, `media\` und `logs\` liegen neben
 `app\` unter der Paketwurzel.
 
 ## Portabler Offline-Tour-Export
 
 Im Adminbereich erzeugt **Portable Tour exportieren** aus einem Projekt eine
-eigenständige ZIP-Datei. Sie enthält Projektdaten als `tour.json`, einen
+eigenstÃ¤ndige ZIP-Datei. Sie enthÃ¤lt Projektdaten als `tour.json`, einen
 separaten statischen Viewer, lokale JavaScript-/CSS-Bibliotheken und die
-ausgewählten Medien, GPX-Tracks und MBTiles. Der Viewer verwendet weder Flask
-noch die Panorama-Studio-Datenbank und führt keine CDN-, API- oder sonstigen
+ausgewÃ¤hlten Medien, GPX-Tracks und MBTiles. Der Viewer verwendet weder Flask
+noch die offline360-studio-Datenbank und fÃ¼hrt keine CDN-, API- oder sonstigen
 Netzwerkzugriffe aus.
 
 ```text
@@ -58,19 +58,19 @@ portable-tour/
     tracks/
 ```
 
-Das direkte Öffnen von `index.html` über `file://` zeigt absichtlich einen
+Das direkte Ã–ffnen von `index.html` Ã¼ber `file://` zeigt absichtlich einen
 Hinweis, weil Browser lokale `fetch()`- und Modulzugriffe blockieren.
-`start-tour.bat` startet die mitexportierte `server.exe`; der ausschließlich
-auf `127.0.0.1` gebundene Server wählt einen freien Port und öffnet danach
+`start-tour.bat` startet die mitexportierte `server.exe`; der ausschlieÃŸlich
+auf `127.0.0.1` gebundene Server wÃ¤hlt einen freien Port und Ã¶ffnet danach
 den Standardbrowser. Die EXE wird reproduzierbar aus
 `tools/portable-server/` gebaut. Fehlt sie, bricht der Export mit einem
 Hinweis auf `build.ps1` ab. Beim Export erfolgen keine Downloads.
 
-Fotos, 360°-Videos, Startansichten, Panorama- und Info-Hotspots,
+Fotos, 360Â°-Videos, Startansichten, Panorama- und Info-Hotspots,
 Tiny Planet/Rabbit Hole, Galerie, Tastatursteuerung, GPS-Marker und
-GPX-Linien werden vom statischen Viewer unterstützt. Raster- und
-Vector-MBTiles werden einschließlich Metadaten exportiert. Der portable
-Server liefert Flat- und normalisierte MBTiles über lokale Endpunkte aus.
+GPX-Linien werden vom statischen Viewer unterstÃ¼tzt. Raster- und
+Vector-MBTiles werden einschlieÃŸlich Metadaten exportiert. Der portable
+Server liefert Flat- und normalisierte MBTiles Ã¼ber lokale Endpunkte aus.
 Leaflet rendert Rasterkarten, MapLibre Vektorkarten; der lokale Vector-Stil
 verwendet keine externen Fonts, Glyphs, Sprites oder Styles.
 
@@ -78,15 +78,15 @@ verwendet keine externen Fonts, Glyphs, Sprites oder Styles.
 
 Im Admin-Bereich lassen sich Raster-MBTiles (PNG, JPEG, WebP) und
 Vector-MBTiles (PBF/MVT) als lokale Basiskarte importieren. Flat- und
-normalisierte `map`/`images`-Schemas werden unterstützt. Die maximale
-Importgröße beträgt 5 GB.
+normalisierte `map`/`images`-Schemas werden unterstÃ¼tzt. Die maximale
+ImportgrÃ¶ÃŸe betrÃ¤gt 5 GB.
 
 Die Dateien bleiben separat unter `data/maps/`; in
-`data/panorama_studio.db` stehen nur Metadaten und der serverseitig erzeugte
-Dateiname. Ohne aktive oder mit einer nicht verfügbaren Kartenquelle zeigt
+`data/OFFLINE360_STUDIO.db` stehen nur Metadaten und der serverseitig erzeugte
+Dateiname. Ohne aktive oder mit einer nicht verfÃ¼gbaren Kartenquelle zeigt
 die Karte weiterhin den neutralen Hintergrund. Rasterkarten, Medienmarker
 und GPX verwenden Leaflet. Vektorkarten werden mit dem lokal eingebundenen
-MapLibre GL JS gerendert; der automatisch erzeugte Basisstil benötigt keine
+MapLibre GL JS gerendert; der automatisch erzeugte Basisstil benÃ¶tigt keine
 Fonts, Sprites oder externen URLs.
 
 API:
@@ -102,16 +102,16 @@ API:
 ## Backup & Restore
 
 Der Admin-Bereich kann lokale Projektdaten als ZIP exportieren und wiederherstellen.
-Ein Backup enthält:
+Ein Backup enthÃ¤lt:
 
 - `manifest.json` mit App-, Schema- und Formatversion sowie SHA-256 jeder Datei
 - `README.txt`
-- `panorama_studio.db` als konsistente SQLite-Kopie
-- unterstützte Konfigurationsdateien aus `data/config/` unter `config/`
+- `OFFLINE360_STUDIO.db` als konsistente SQLite-Kopie
+- unterstÃ¼tzte Konfigurationsdateien aus `data/config/` unter `config/`
 - optional Fotos, Videos und Vorschaubilder unter `media/`
 - optional Offline-Karten unter `maps/`
 
-`media_count` und `project_count` geben die Anzahl der Datensätze in der
+`media_count` und `project_count` geben die Anzahl der DatensÃ¤tze in der
 SQLite-Datenbank an. `includes_media` zeigt an, ob auch die Mediendateien
 enthalten sind.
 
@@ -119,22 +119,22 @@ enthalten sind.
 `{"includes_media": false, "includes_maps": false}`.
 `POST /api/backup/import` erwartet das ZIP im Multipart-Feld `file`.
 
-Die maximale ZIP-Größe und die maximale entpackte Größe betragen jeweils
-10 GB. Vor jedem Restore wird unter `data/backups/` ein vollständiges
+Die maximale ZIP-GrÃ¶ÃŸe und die maximale entpackte GrÃ¶ÃŸe betragen jeweils
+10 GB. Vor jedem Restore wird unter `data/backups/` ein vollstÃ¤ndiges
 Sicherheitsbackup angelegt. Nach einem erfolgreichen Restore muss Panorama
 Studio neu gestartet werden.
 
-Backups ohne Medien lassen vorhandene Mediendateien beim Restore unverändert.
+Backups ohne Medien lassen vorhandene Mediendateien beim Restore unverÃ¤ndert.
 Backups mit Medien ersetzen das lokale Medienverzeichnis.
 
-Das aktuelle Backupformat prüft Dateiliste und Prüfsummen vollständig vor dem
-Entpacken. Manipulierte oder unvollständige Archive sowie Backups mit neuerer
+Das aktuelle Backupformat prÃ¼ft Dateiliste und PrÃ¼fsummen vollstÃ¤ndig vor dem
+Entpacken. Manipulierte oder unvollstÃ¤ndige Archive sowie Backups mit neuerer
 Schema-Version werden abgelehnt. Legacy-Backups des bisherigen Formats bleiben
-lesbar, soweit Datenbank- und Inhaltsprüfung erfolgreich sind.
+lesbar, soweit Datenbank- und InhaltsprÃ¼fung erfolgreich sind.
 
 ## Datenbankmigrationen
 
-`core/migrations/` enthält geordnete additive Migrationen.
+`core/migrations/` enthÃ¤lt geordnete additive Migrationen.
 `schema_migrations` protokolliert jede erfolgreich abgeschlossene Migration
 genau einmal. Migrationen laufen transaktional und idempotent; automatische
 Downgrades gibt es nicht. Aktueller Stand ist Schema 3 (`initial`,
@@ -143,8 +143,8 @@ Downgrades gibt es nicht. Aktueller Stand ist Schema 3 (`initial`,
 ## Windows-Release
 
 `tools/release/build-release.ps1` verlangt einen sauberen Git-Arbeitsbaum,
-zeigt Branch und zentrale Version, führt Python-, JavaScript- und Go-Tests aus,
-baut und prüft `portable-server` und erzeugt ein deterministisches ZIP unter
+zeigt Branch und zentrale Version, fÃ¼hrt Python-, JavaScript- und Go-Tests aus,
+baut und prÃ¼ft `portable-server` und erzeugt ein deterministisches ZIP unter
 `build/release/`. Alle Laufzeitassets sind lokal.
 
 ```powershell
@@ -156,21 +156,22 @@ powershell -ExecutionPolicy Bypass -File tools/release/build-release.ps1 -Mode d
 powershell -ExecutionPolicy Bypass -File tools/release/build-release.ps1 -Mode standalone
 ```
 
-Die Ausgaben heißen
-`PanoramaStudio-<version>-win64-dev.zip` beziehungsweise
-`PanoramaStudio-<version>-win64-standalone.zip`; daneben wird jeweils eine
-`.sha256`-Datei geschrieben. Der Standalone-Build lädt bei leerem Cache das
-offizielle CPython-3.12.10-Embeddable-ZIP, das geprüfte `get-pip.py` und die
+Die Ausgaben heiÃŸen
+`Offline360Studio-<version>-win64-dev.zip` beziehungsweise
+`Offline360Studio-<version>-win64-standalone.zip`; daneben wird jeweils eine
+`.sha256`-Datei geschrieben. Der Standalone-Build lÃ¤dt bei leerem Cache das
+offizielle CPython-3.12.10-Embeddable-ZIP, das geprÃ¼fte `get-pip.py` und die
 gepinnten Pakete aus `requirements.txt`. Downloads und pip werden nur beim
 Build verwendet. Runtime und Bootstrap werden vor ihrer Verwendung gegen die
-im Skript dokumentierten SHA-256-Werte geprüft. Verifizierte Dateien unter
+im Skript dokumentierten SHA-256-Werte geprÃ¼ft. Verifizierte Dateien unter
 `tools/release/cache/` werden wiederverwendet und nicht versioniert.
 
-Bekannte Einschränkungen: Es gibt keinen Installer oder automatischen
-Updater. Browser-Codecs und WebGL sind systemabhängig; große
-Medien-/MBTiles-Bestände benötigen ausreichend temporären Speicher. Der
-Standalone-Build benötigt Windows x64 und bei leerem Cache Internetzugriff.
+Bekannte EinschrÃ¤nkungen: Es gibt keinen Installer oder automatischen
+Updater. Browser-Codecs und WebGL sind systemabhÃ¤ngig; groÃŸe
+Medien-/MBTiles-BestÃ¤nde benÃ¶tigen ausreichend temporÃ¤ren Speicher. Der
+Standalone-Build benÃ¶tigt Windows x64 und bei leerem Cache Internetzugriff.
 
 Offline-Karten werden nur gesichert und beim Restore ersetzt, wenn
 `includes_maps` im Manifest `true` ist. Diese Option ist wegen der
-potenziell großen Dateien standardmäßig deaktiviert.
+potenziell groÃŸen Dateien standardmÃ¤ÃŸig deaktiviert.
+

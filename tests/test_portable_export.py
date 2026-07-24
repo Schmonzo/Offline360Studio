@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import io
 import hashlib
@@ -30,7 +30,7 @@ class PortableExportTests(unittest.TestCase):
             PHOTO_DIR=media_dir / "photos",
             VIDEO_DIR=media_dir / "videos",
             THUMB_DIR=media_dir / "thumbs",
-            DB_PATH=data_dir / "panorama_studio.db",
+            DB_PATH=data_dir / "OFFLINE360_STUDIO.db",
             MAPS_DIR=data_dir / "maps",
             PORTABLE_SERVER_EXE=portable_server,
         )
@@ -408,3 +408,4 @@ class PortableExportTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

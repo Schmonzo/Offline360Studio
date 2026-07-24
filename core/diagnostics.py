@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 import platform
@@ -61,7 +61,7 @@ def build_report(
     hash_status = server_hash_status(server_executable)
     return {
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "panorama_studio_version": __version__,
+        "OFFLINE360_STUDIO_version": __version__,
         "schema_version": current_schema_version(conn),
         "python_version": platform.python_version(),
         "operating_system": platform.platform(),
@@ -79,3 +79,4 @@ def build_report(
         "portable_server": hash_status,
         "last_backup_at": _latest_backup(data_dir / "backups"),
     }
+

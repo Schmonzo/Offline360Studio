@@ -1,4 +1,4 @@
-import json
+﻿import json
 from pathlib import Path
 import subprocess
 import unittest
@@ -96,7 +96,7 @@ class MapAssetTests(unittest.TestCase):
             'id="hideAllMapTracksBtn"',
             'id="mapControls"',
             'id="mapBasemapSelect"',
-            'aria-label="Basiskarte auswählen"',
+            'aria-label="Basiskarte auswÃ¤hlen"',
             'Keine Basiskarte',
             'id="offlineMapsTitle"',
             'id="offlineMapStatus"',
@@ -136,7 +136,7 @@ class MapAssetTests(unittest.TestCase):
         self.assertIn("if (type === 'vector') return 'Vector'", source_contract)
         self.assertIn("return 'Unbekannt'", source_contract)
         self.assertIn("source.name", source)
-        self.assertIn("source.active ? ' · Aktiv' : ''", source)
+        self.assertIn("source.active ? ' Â· Aktiv' : ''", source)
         self.assertIn("option.value = String(source.source_id)", source)
         self.assertIn("JSON.stringify({ source_id: sourceId })", source)
         self.assertIn("notifyMap()", source)
@@ -251,3 +251,4 @@ console.log(JSON.stringify({
 
 if __name__ == "__main__":
     unittest.main()
+

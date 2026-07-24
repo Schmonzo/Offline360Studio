@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import math
 import re
@@ -191,7 +191,7 @@ def save_upload(stream: BinaryIO, destination: Path) -> None:
             if total > MAX_GPX_FILE_SIZE:
                 raise GpxError(
                     "gpx_file_too_large",
-                    f"GPX-Dateien dürfen höchstens {MAX_GPX_FILE_SIZE // (1024 * 1024)} MB groß sein.",
+                    f"GPX-Dateien dÃ¼rfen hÃ¶chstens {MAX_GPX_FILE_SIZE // (1024 * 1024)} MB groÃŸ sein.",
                     413,
                 )
             output.write(chunk)
@@ -207,9 +207,9 @@ def _finite(value: str, field: str) -> float:
     try:
         number = float(value)
     except (TypeError, ValueError) as exc:
-        raise GpxError("invalid_coordinate", f"Ungültiger GPX-Wert für {field}.") from exc
+        raise GpxError("invalid_coordinate", f"UngÃ¼ltiger GPX-Wert fÃ¼r {field}.") from exc
     if not math.isfinite(number):
-        raise GpxError("invalid_coordinate", f"Ungültiger GPX-Wert für {field}.")
+        raise GpxError("invalid_coordinate", f"UngÃ¼ltiger GPX-Wert fÃ¼r {field}.")
     return number
 
 
@@ -225,7 +225,7 @@ def _time(value: str | None) -> float | None:
             raise ValueError
         return parsed.timestamp()
     except (ValueError, OverflowError, OSError) as exc:
-        raise GpxError("invalid_time", "Ein GPX-Zeitstempel ist ungültig.") from exc
+        raise GpxError("invalid_time", "Ein GPX-Zeitstempel ist ungÃ¼ltig.") from exc
 
 
 def parse_gpx(path: Path, *, max_points: int = MAX_GPX_POINTS) -> ParsedGpx:
@@ -234,13 +234,13 @@ def parse_gpx(path: Path, *, max_points: int = MAX_GPX_POINTS) -> ParsedGpx:
     except OSError as exc:
         raise GpxError("gpx_read_failed", "Die GPX-Datei konnte nicht gelesen werden.") from exc
     if len(data) > MAX_GPX_FILE_SIZE:
-        raise GpxError("gpx_file_too_large", "Die GPX-Datei ist zu groß.", 413)
+        raise GpxError("gpx_file_too_large", "Die GPX-Datei ist zu groÃŸ.", 413)
     if _FORBIDDEN_XML.search(data):
-        raise GpxError("unsafe_xml", "DTD und Entitäten sind in GPX-Dateien nicht erlaubt.")
+        raise GpxError("unsafe_xml", "DTD und EntitÃ¤ten sind in GPX-Dateien nicht erlaubt.")
     try:
         root = ET.fromstring(data)
     except ET.ParseError as exc:
-        raise GpxError("invalid_xml", "Die GPX-Datei enthält kein gültiges XML.") from exc
+        raise GpxError("invalid_xml", "Die GPX-Datei enthÃ¤lt kein gÃ¼ltiges XML.") from exc
     if _local_name(root.tag) != "gpx":
         raise GpxError("invalid_gpx", "Das XML-Dokument ist keine GPX-Datei.")
 
@@ -257,14 +257,14 @@ def parse_gpx(path: Path, *, max_points: int = MAX_GPX_POINTS) -> ParsedGpx:
                 if len(points) >= max_points:
                     raise GpxError(
                         "point_limit_exceeded",
-                        f"Ein GPX-Import darf höchstens {max_points} Punkte enthalten.",
+                        f"Ein GPX-Import darf hÃ¶chstens {max_points} Punkte enthalten.",
                     )
                 latitude = _finite(point.get("lat"), "latitude")
                 longitude = _finite(point.get("lon"), "longitude")
                 if not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
                     raise GpxError(
                         "invalid_coordinate",
-                        "Ein GPX-Punkt liegt außerhalb des gültigen Koordinatenbereichs.",
+                        "Ein GPX-Punkt liegt auÃŸerhalb des gÃ¼ltigen Koordinatenbereichs.",
                     )
                 elevation = None
                 recorded_at = None
@@ -278,5 +278,6 @@ def parse_gpx(path: Path, *, max_points: int = MAX_GPX_POINTS) -> ParsedGpx:
                     GpxPoint(len(points), latitude, longitude, elevation, recorded_at)
                 )
     if not points:
-        raise GpxError("no_track_points", "Die GPX-Datei enthält keine Trackpunkte.")
+        raise GpxError("no_track_points", "Die GPX-Datei enthÃ¤lt keine Trackpunkte.")
     return ParsedGpx(track_name, points)
+

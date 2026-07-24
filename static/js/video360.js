@@ -1,4 +1,4 @@
-// Spherical equirectangular MP4 viewer.
+﻿// Spherical equirectangular MP4 viewer.
 // Three.js is loaded on demand from the local offline bundle.
 (function () {
   'use strict';
@@ -30,21 +30,21 @@
 
   function mediaErrorMessage(error) {
     if (!error) {
-      return 'Das 360°-Video konnte nicht geladen werden.';
+      return 'Das 360Â°-Video konnte nicht geladen werden.';
     }
     if (error.code === 4) {
-      return 'Dieses MP4 oder sein Video-/Audio-Codec wird vom Browser nicht unterstützt.';
+      return 'Dieses MP4 oder sein Video-/Audio-Codec wird vom Browser nicht unterstÃ¼tzt.';
     }
     if (error.code === 2) {
-      return 'Das 360°-Video konnte wegen eines Lade- oder Netzwerkfehlers nicht gelesen werden.';
+      return 'Das 360Â°-Video konnte wegen eines Lade- oder Netzwerkfehlers nicht gelesen werden.';
     }
     if (error.code === 3) {
-      return 'Das MP4 konnte nicht dekodiert werden. Der Codec ist möglicherweise nicht unterstützt oder die Datei ist beschädigt.';
+      return 'Das MP4 konnte nicht dekodiert werden. Der Codec ist mÃ¶glicherweise nicht unterstÃ¼tzt oder die Datei ist beschÃ¤digt.';
     }
     if (error.code === 1) {
-      return 'Das Laden des 360°-Videos wurde abgebrochen.';
+      return 'Das Laden des 360Â°-Videos wurde abgebrochen.';
     }
-    return 'Das 360°-Video konnte nicht geladen werden.';
+    return 'Das 360Â°-Video konnte nicht geladen werden.';
   }
 
   class Video360Viewer {
@@ -93,7 +93,7 @@
       this.status = document.createElement('div');
       this.status.className = 'video360__status';
       this.status.setAttribute('role', 'status');
-      this.status.textContent = '360°-Video wird geladen …';
+      this.status.textContent = '360Â°-Video wird geladen â€¦';
 
       this.controls = document.createElement('div');
       this.controls.className = 'video360__controls';
@@ -102,7 +102,7 @@
       this.playButton = document.createElement('button');
       this.playButton.type = 'button';
       this.playButton.className = 'video360__play';
-      this.playButton.textContent = '▶';
+      this.playButton.textContent = 'â–¶';
       this.playButton.title = 'Wiedergabe/Pause (Leertaste)';
       this.playButton.setAttribute('aria-label', 'Wiedergabe starten');
 
@@ -126,7 +126,7 @@
       this.volume.max = '1';
       this.volume.step = '0.05';
       this.volume.value = '1';
-      this.volume.setAttribute('aria-label', 'Lautstärke');
+      this.volume.setAttribute('aria-label', 'LautstÃ¤rke');
 
       this.fullscreenButton = document.createElement('button');
       this.fullscreenButton.type = 'button';
@@ -178,7 +178,7 @@
       this.listen(this.video, 'volumechange', () => {
         this.volume.value = String(this.video.muted ? 0 : this.video.volume);
       });
-      this.listen(this.video, 'waiting', () => this.showStatus('Video wird gepuffert …'));
+      this.listen(this.video, 'waiting', () => this.showStatus('Video wird gepuffert â€¦'));
       this.listen(this.video, 'error', () => this.showError(mediaErrorMessage(this.video.error)));
       this.listen(document, 'fullscreenchange', () => {
         this.resize();
@@ -215,15 +215,15 @@
           await this.video.play();
         } catch (error) {
           if (!this.destroyed && error?.name !== 'AbortError') {
-            this.showStatus('Wiedergabe ist pausiert. Zum Starten ▶ wählen.');
+            this.showStatus('Wiedergabe ist pausiert. Zum Starten â–¶ wÃ¤hlen.');
           }
         }
       } catch (error) {
         if (!this.destroyed) {
-          console.error('360°-Video-Initialisierung fehlgeschlagen:', error);
+          console.error('360Â°-Video-Initialisierung fehlgeschlagen:', error);
           this.showError(
             error?.message?.toLowerCase().includes('webgl')
-              ? 'WebGL ist nicht verfügbar oder wurde vom Browser deaktiviert.'
+              ? 'WebGL ist nicht verfÃ¼gbar oder wurde vom Browser deaktiviert.'
               : 'Der lokale Three.js-Renderer konnte nicht geladen werden.'
           );
         }
@@ -260,7 +260,7 @@
 
       this.listen(this.renderer.domElement, 'webglcontextlost', event => {
         event.preventDefault();
-        this.showError('Der WebGL-Kontext ging verloren. Bitte das Video erneut öffnen.');
+        this.showError('Der WebGL-Kontext ging verloren. Bitte das Video erneut Ã¶ffnen.');
       });
 
       if (typeof ResizeObserver !== 'undefined') {
@@ -422,7 +422,7 @@
 
     updatePlayButton() {
       const playing = !this.video.paused && !this.video.ended;
-      this.playButton.textContent = playing ? '❚❚' : '▶';
+      this.playButton.textContent = playing ? 'âšâš' : 'â–¶';
       this.playButton.setAttribute(
         'aria-label',
         playing ? 'Wiedergabe pausieren' : 'Wiedergabe starten'
@@ -492,3 +492,4 @@
 
   window.Video360Viewer = Video360Viewer;
 })();
+

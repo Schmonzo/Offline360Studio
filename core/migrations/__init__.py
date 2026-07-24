@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import logging
 import sqlite3
@@ -74,3 +74,4 @@ def migrate(conn: sqlite3.Connection) -> int:
             ) from exc
         LOGGER.info("Datenbankmigration abgeschlossen: %03d %s", version, name)
     return current_schema_version(conn)
+

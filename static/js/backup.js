@@ -1,4 +1,4 @@
-(() => {
+﻿(() => {
   'use strict';
 
   const exportWithoutMediaBtn = document.getElementById('exportWithoutMediaBtn');
@@ -40,15 +40,15 @@
     const candidate = match?.[1]?.trim();
     return candidate && /^[A-Za-z0-9._-]+$/.test(candidate)
       ? candidate
-      : 'panorama-studio-backup.zip';
+      : 'offline360-studio-backup.zip';
   }
 
   async function exportBackup(includesMedia) {
     if (pending) return;
     setPending(true);
     backupStatus.textContent = includesMedia
-      ? 'Backup mit Medien wird erstellt…'
-      : 'Backup ohne Medien wird erstellt…';
+      ? 'Backup mit Medien wird erstelltâ€¦'
+      : 'Backup ohne Medien wird erstelltâ€¦';
     try {
       const response = await fetch('/api/backup/export', {
         method: 'POST',
@@ -88,7 +88,7 @@
     if (!file || pending) return;
     closeConfirmDialog();
     setPending(true, 0);
-    backupStatus.textContent = 'Backup wird hochgeladen und geprüft…';
+    backupStatus.textContent = 'Backup wird hochgeladen und geprÃ¼ftâ€¦';
 
     const formData = new FormData();
     formData.append('file', file);
@@ -99,7 +99,7 @@
       if (!event.lengthComputable) return;
       const percent = Math.round((event.loaded / event.total) * 100);
       backupProgress.value = percent;
-      backupStatus.textContent = `Backup wird hochgeladen… ${percent}%`;
+      backupStatus.textContent = `Backup wird hochgeladenâ€¦ ${percent}%`;
     });
     request.addEventListener('load', () => {
       const data = request.response;
@@ -111,10 +111,10 @@
       } else {
         const safetyName = typeof data?.safety_backup === 'string' ? data.safety_backup : '';
         backupStatus.textContent = safetyName
-          ? `Restore erfolgreich. Sicherheitsbackup: ${safetyName}. Bitte Panorama Studio neu starten.`
-          : 'Restore erfolgreich. Bitte Panorama Studio neu starten.';
+          ? `Restore erfolgreich. Sicherheitsbackup: ${safetyName}. Bitte Offline360 Studio neu starten.`
+          : 'Restore erfolgreich. Bitte Offline360 Studio neu starten.';
         backupFile.value = '';
-        backupFileName.textContent = 'Keine Datei ausgewählt.';
+        backupFileName.textContent = 'Keine Datei ausgewÃ¤hlt.';
       }
       setPending(false);
     });
@@ -133,12 +133,12 @@
   exportWithMediaBtn.addEventListener('click', () => exportBackup(true));
   backupFile.addEventListener('change', () => {
     const file = backupFile.files?.[0];
-    backupFileName.textContent = file?.name || 'Keine Datei ausgewählt.';
+    backupFileName.textContent = file?.name || 'Keine Datei ausgewÃ¤hlt.';
   });
   restoreForm.addEventListener('submit', event => {
     event.preventDefault();
     if (!backupFile.files?.length || pending) {
-      backupStatus.textContent = 'Bitte zuerst eine ZIP-Datei auswählen.';
+      backupStatus.textContent = 'Bitte zuerst eine ZIP-Datei auswÃ¤hlen.';
       backupFile.focus();
       return;
     }
@@ -155,3 +155,4 @@
     if (pending) event.preventDefault();
   });
 })();
+

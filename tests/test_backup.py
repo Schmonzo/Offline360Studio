@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import io
 import json
@@ -29,7 +29,7 @@ class BackupApiTests(unittest.TestCase):
             PHOTO_DIR=media_dir / "photos",
             VIDEO_DIR=media_dir / "videos",
             THUMB_DIR=media_dir / "thumbs",
-            DB_PATH=data_dir / "panorama_studio.db",
+            DB_PATH=data_dir / "OFFLINE360_STUDIO.db",
             MAPS_DIR=data_dir / "maps",
         )
         self.path_patch.start()
@@ -116,7 +116,7 @@ class BackupApiTests(unittest.TestCase):
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
             names = set(archive.namelist())
             manifest = json.loads(archive.read("manifest.json"))
-            self.assertIn("panorama_studio.db", names)
+            self.assertIn("OFFLINE360_STUDIO.db", names)
             self.assertIn("README.txt", names)
             self.assertIn("config/studio.json", names)
             self.assertFalse(any(name.startswith("media/") for name in names))
@@ -136,14 +136,14 @@ class BackupApiTests(unittest.TestCase):
                     "files",
                 },
             )
-            self.assertEqual(manifest["app_name"], "Panorama Studio")
+            self.assertEqual(manifest["app_name"], "Offline360 Studio")
             self.assertEqual(manifest["app_version"], backup.APP_VERSION)
             self.assertEqual(manifest["backup_version"], 2)
             self.assertEqual(manifest["schema_version"], 3)
-            self.assertIn("panorama_studio.db", manifest["files"])
+            self.assertIn("OFFLINE360_STUDIO.db", manifest["files"])
             self.assertFalse(manifest["includes_media"])
             self.assertFalse(manifest["includes_maps"])
-            self.assertEqual(manifest["database_filename"], "panorama_studio.db")
+            self.assertEqual(manifest["database_filename"], "OFFLINE360_STUDIO.db")
             self.assertEqual(manifest["media_count"], 1)
             self.assertEqual(manifest["project_count"], 1)
 
@@ -251,7 +251,7 @@ class BackupApiTests(unittest.TestCase):
 
         content = self.export_backup(False)
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
-            database_bytes = archive.read("panorama_studio.db")
+            database_bytes = archive.read("OFFLINE360_STUDIO.db")
         database_copy = Path(self.temp_dir.name) / "gps-gpx-backup.db"
         database_copy.write_bytes(database_bytes)
         with closing(sqlite3.connect(database_copy)) as conn:
@@ -288,7 +288,7 @@ class BackupApiTests(unittest.TestCase):
         self.assertTrue(safety_path.is_file())
         with zipfile.ZipFile(safety_path) as archive:
             self.assertIn("media/photos/keep.jpg", archive.namelist())
-            database_bytes = archive.read("panorama_studio.db")
+            database_bytes = archive.read("OFFLINE360_STUDIO.db")
         safety_db = Path(self.temp_dir.name) / "safety.db"
         safety_db.write_bytes(database_bytes)
         with closing(sqlite3.connect(safety_db)) as conn:
@@ -340,7 +340,7 @@ class BackupApiTests(unittest.TestCase):
     def test_corrupt_database_inside_valid_zip_is_rejected(self) -> None:
         content = self.rewrite_archive(
             self.export_backup(False),
-            replacements={"panorama_studio.db": b"not a sqlite database"},
+            replacements={"OFFLINE360_STUDIO.db": b"not a sqlite database"},
         )
         self.assert_error(
             self.import_backup(content), 400, "checksum_mismatch"
@@ -381,3 +381,4 @@ class BackupAssetTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

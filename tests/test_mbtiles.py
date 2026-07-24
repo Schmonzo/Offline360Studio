@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import gzip
 import io
@@ -127,7 +127,7 @@ class MBTilesApiTests(unittest.TestCase):
             PHOTO_DIR=media / "photos",
             VIDEO_DIR=media / "videos",
             THUMB_DIR=media / "thumbs",
-            DB_PATH=data / "panorama_studio.db",
+            DB_PATH=data / "OFFLINE360_STUDIO.db",
         )
         self.path_patch.start()
         panorama_app.app.config.update(TESTING=True)
@@ -253,7 +253,7 @@ class MBTilesApiTests(unittest.TestCase):
                 self.assert_error(response, 400, "tiles_table_missing")
                 self.assertEqual(
                     response.get_json()["error"]["message"],
-                    "Weder ein gültiges tiles-Schema noch ein gültiges "
+                    "Weder ein gÃ¼ltiges tiles-Schema noch ein gÃ¼ltiges "
                     "map/images-Schema gefunden.",
                 )
 
@@ -543,3 +543,4 @@ class MBTilesApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

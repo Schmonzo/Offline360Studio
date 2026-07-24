@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   'use strict';
 
   const form = document.getElementById('portableExportForm');
@@ -61,7 +61,7 @@
       projectSelect.replaceChildren();
       const placeholder = document.createElement('option');
       placeholder.value = '';
-      placeholder.textContent = 'Projekt auswählen';
+      placeholder.textContent = 'Projekt auswÃ¤hlen';
       projectSelect.appendChild(placeholder);
       (payload.items || []).forEach(project => {
         const option = document.createElement('option');
@@ -94,7 +94,7 @@
     if (pending) return;
     showError();
     if (!projectSelect.value) {
-      showError('Bitte ein Projekt auswählen.');
+      showError('Bitte ein Projekt auswÃ¤hlen.');
       projectSelect.focus();
       return;
     }
@@ -104,13 +104,13 @@
       return;
     }
     if (!zipInput.checked) {
-      showError('Der portable Export unterstützt den Download ausschließlich als ZIP.');
+      showError('Der portable Export unterstÃ¼tzt den Download ausschlieÃŸlich als ZIP.');
       zipInput.focus();
       return;
     }
 
     setPending(true);
-    status.textContent = 'Tour wird zusammengestellt. Große Medien und Karten können einige Zeit benötigen …';
+    status.textContent = 'Tour wird zusammengestellt. GroÃŸe Medien und Karten kÃ¶nnen einige Zeit benÃ¶tigen â€¦';
     try {
       const response = await fetch('/api/export/portable-tour', {
         method: 'POST',
@@ -127,7 +127,7 @@
         const payload = await response.json().catch(() => null);
         throw new Error(responseMessage(payload, `Export fehlgeschlagen (HTTP ${response.status}).`));
       }
-      status.textContent = 'ZIP wird für den Download vorbereitet …';
+      status.textContent = 'ZIP wird fÃ¼r den Download vorbereitet â€¦';
       const blob = await response.blob();
       const disposition = response.headers.get('Content-Disposition') || '';
       const match = disposition.match(/filename="([^"]+)"/i);
@@ -146,3 +146,4 @@
     if (!document.hidden && !pending) loadProjects();
   });
 }());
+

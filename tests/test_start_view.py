@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import math
 import tempfile
@@ -21,7 +21,7 @@ class StartViewApiTests(unittest.TestCase):
             PHOTO_DIR=media_dir / "photos",
             VIDEO_DIR=media_dir / "videos",
             THUMB_DIR=media_dir / "thumbs",
-            DB_PATH=root / "data" / "panorama_studio.db",
+            DB_PATH=root / "data" / "OFFLINE360_STUDIO.db",
         )
         self.path_patch.start()
         panorama_app.app.config.update(TESTING=True)
@@ -135,3 +135,4 @@ class StartViewApiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

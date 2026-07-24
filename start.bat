@@ -1,8 +1,8 @@
-@echo off
+﻿@echo off
 setlocal
 cd /d "%~dp0"
 echo =====================================
-echo   Panorama Studio v0.1
+echo   Offline360 Studio v0.1
 echo =====================================
 echo.
 if not exist ".venv\Scripts\python.exe" (
@@ -19,6 +19,7 @@ if errorlevel 1 (
   exit /b 1
 )
 echo.
-echo Starte Panorama Studio...
+echo Starte Offline360 Studio...
 ".venv\Scripts\python.exe" app.py
 pause
+

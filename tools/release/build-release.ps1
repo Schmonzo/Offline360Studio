@@ -1,4 +1,4 @@
-param(
+﻿param(
     [ValidateSet("dev", "standalone")]
     [string]$Mode = "dev"
 )
@@ -90,7 +90,7 @@ function Write-StandaloneLauncher {
 setlocal
 cd /d "%~dp0"
 
-set "PANORAMA_STUDIO_RUNTIME_ROOT=%CD%"
+set "OFFLINE360_STUDIO_RUNTIME_ROOT=%CD%"
 set "PYTHONUTF8=1"
 set "PYTHONDONTWRITEBYTECODE=1"
 set "PYTHONNOUSERSITE=1"
@@ -109,12 +109,12 @@ if not exist "%CD%\app\app.py" (
   exit /b 1
 )
 
-echo Starte Panorama Studio...
+echo Starte Offline360 Studio...
 "%PYTHON_EXE%" "%CD%\app\app.py"
 if errorlevel 1 (
   echo.
-  echo FEHLER: Panorama Studio wurde mit einem Fehler beendet.
-  echo Details stehen, soweit verfuegbar, in logs\panorama-studio.log.
+  echo FEHLER: Offline360 Studio wurde mit einem Fehler beendet.
+  echo Details stehen, soweit verfuegbar, in logs\offline360-studio.log.
   pause
   exit /b 1
 )
@@ -152,7 +152,7 @@ try {
         } finally { Pop-Location }
     }
 
-    $TemporaryBuildDir = Join-Path ([IO.Path]::GetTempPath()) ("panorama-studio-release-" + [guid]::NewGuid().ToString("N"))
+    $TemporaryBuildDir = Join-Path ([IO.Path]::GetTempPath()) ("offline360-studio-release-" + [guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $TemporaryBuildDir | Out-Null
     & "tools/portable-server/build.ps1" -OutDir $TemporaryBuildDir
     if ($LASTEXITCODE -ne 0) { throw "portable-server Build fehlgeschlagen." }
@@ -164,7 +164,7 @@ try {
     if ($ExpectedServerHash -ne $ActualServerHash) { throw "portable-server SHA-256 stimmt nicht." }
 
     $BuildRoot = Join-Path $Repo "build\release"
-    $PackageName = "PanoramaStudio-$Version-win64-$Mode"
+    $PackageName = "Offline360Studio-$Version-win64-$Mode"
     $Stage = Join-Path $BuildRoot $PackageName
     $ResolvedBuildRoot = [IO.Path]::GetFullPath($BuildRoot).TrimEnd('\') + '\'
     $ResolvedStage = [IO.Path]::GetFullPath($Stage)
@@ -185,7 +185,7 @@ try {
     Copy-Item -LiteralPath "tools/portable-server" -Destination "$Stage\app\tools" -Recurse -Force
     Copy-Item -LiteralPath $TemporaryServer -Destination "$Stage\app\tools\portable-server\server.exe" -Force
     Copy-Item -LiteralPath $TemporaryServerHash -Destination "$Stage\app\tools\portable-server\server.exe.sha256" -Force
-    Copy-Item "LICENSE" "$Stage\LICENSES\PanoramaStudio.txt"
+    Copy-Item "LICENSE" "$Stage\LICENSES\Offline360Studio.txt"
     Copy-Item "static\lib\three.LICENSE.txt" "$Stage\LICENSES\three.txt"
     Copy-Item "static\lib\leaflet\LICENSE.txt" "$Stage\LICENSES\leaflet.txt"
     Copy-Item "static\lib\maplibre\LICENSE.txt" "$Stage\LICENSES\maplibre.txt"
@@ -241,7 +241,7 @@ try {
                 Remove-Item -Force
         }
 
-        Write-StandaloneLauncher "$Stage\start-panorama-studio.bat"
+        Write-StandaloneLauncher "$Stage\start-offline360-studio.bat"
         if (Test-Path "$PythonRuntime\LICENSE.txt") {
             Copy-Item "$PythonRuntime\LICENSE.txt" "$Stage\LICENSES\Python.txt"
         }
@@ -258,9 +258,9 @@ SHA-256: $GetPipSha256
 Pinned build pip: $BuildPipVersion
 "@ | Set-Content "$Stage\LICENSES\embedded-python-source.txt" -Encoding ascii
         @"
-Panorama Studio $Version - Windows Standalone-Paket
+Offline360 Studio $Version - Windows Standalone-Paket
 
-Start: start-panorama-studio.bat doppelklicken.
+Start: start-offline360-studio.bat doppelklicken.
 Python muss nicht installiert sein; die Runtime und alle Python-Pakete liegen lokal bei.
 Die Anwendung arbeitet zur Laufzeit vollstaendig offline und installiert oder laedt nichts nach.
 data\, media\ und logs\ liegen ausserhalb von app\ und bleiben bei einem App-Austausch erhalten.
@@ -269,12 +269,12 @@ Der Release-Build benoetigt Internet fuer Embedded Python, pip-Bootstrap und Dep
 wenn der verifizierte Cache unter tools\release\cache\ noch nicht gefuellt ist.
 "@ | Set-Content "$Stage\README.txt" -Encoding ascii
     } else {
-        Copy-Item "start-panorama-studio.bat" "$Stage\start-panorama-studio.bat"
+        Copy-Item "start-offline360-studio.bat" "$Stage\start-offline360-studio.bat"
         @"
-Panorama Studio $Version - Windows Developer-Paket
+Offline360 Studio $Version - Windows Developer-Paket
 
 Voraussetzung: Python 3 mit den Paketen aus app\requirements.txt.
-Start: start-panorama-studio.bat doppelklicken.
+Start: start-offline360-studio.bat doppelklicken.
 Dieses Paket installiert nichts und laedt keine Komponenten nach.
 "@ | Set-Content "$Stage\README.txt" -Encoding ascii
     }
@@ -298,3 +298,4 @@ Dieses Paket installiert nichts und laedt keine Komponenten nach.
     }
     Pop-Location
 }
+

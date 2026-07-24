@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 import sys
@@ -39,17 +39,17 @@ class ReleaseModeContractTests(unittest.TestCase):
 
     def test_mode_specific_package_names(self) -> None:
         self.assertIn(
-            '"PanoramaStudio-$Version-win64-$Mode"', self.source
+            '"Offline360Studio-$Version-win64-$Mode"', self.source
         )
         self.assertIn('$Mode -eq "standalone"', self.source)
         self.assertIn(
-            'Copy-Item "start-panorama-studio.bat"', self.source
+            'Copy-Item "start-offline360-studio.bat"', self.source
         )
 
     def test_standalone_launcher_is_local_and_offline(self) -> None:
         lowered = self.launcher.lower()
         self.assertIn(r"runtime\python\python.exe", lowered)
-        self.assertIn("panorama_studio_runtime_root", lowered)
+        self.assertIn("offline360_studio_runtime_root", lowered)
         self.assertIn(r'app\app.py', lowered)
         for forbidden in (" pip ", "winget", "invoke-webrequest", "curl ", "wget"):
             self.assertNotIn(forbidden, lowered)
@@ -100,7 +100,7 @@ class ReleaseRepositoryContractTests(unittest.TestCase):
 
     def test_runtime_root_is_package_root(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
-        self.assertIn('set "PANORAMA_STUDIO_RUNTIME_ROOT=%CD%"', source)
+        self.assertIn('set "offline360_studio_runtime_root=%cd%"', source.lower())
         app_source = (ROOT / "app.py").read_text(encoding="utf-8")
         runtime_source = (ROOT / "core" / "runtime_paths.py").read_text(
             encoding="utf-8"
@@ -111,13 +111,13 @@ class ReleaseRepositoryContractTests(unittest.TestCase):
     def test_digest_is_stable(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             path = Path(temporary) / "payload"
-            path.write_bytes(b"panorama-studio")
+            path.write_bytes(b"offline360-studio")
             self.assertEqual(digest(path), digest(path))
 
     def test_packager_keeps_empty_dirs_and_checksums_runtime_and_server(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            stage = root / "PanoramaStudio-test-win64-standalone"
+            stage = root / "Offline360Studio-test-win64-standalone"
             (stage / "runtime" / "python").mkdir(parents=True)
             (stage / "app" / "tools" / "portable-server").mkdir(parents=True)
             (stage / "data").mkdir()
@@ -151,3 +151,7 @@ class ReleaseRepositoryContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+

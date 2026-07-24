@@ -1,4 +1,4 @@
-import unittest
+﻿import unittest
 from pathlib import Path
 
 import app as panorama_app
@@ -47,3 +47,4 @@ class Video360AssetTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

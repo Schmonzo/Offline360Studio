@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   'use strict';
   if (location.protocol === 'file:') return;
 
@@ -28,7 +28,7 @@
     const button = document.createElement('button');
     button.className = `hotspot ${hotspot.action_type === 'info' ? 'info' : ''}`;
     button.type = 'button';
-    button.textContent = `${hotspot.action_type === 'info' ? 'i' : '→'} ${hotspot.title || (hotspot.action_type === 'info' ? 'Information' : 'Panorama')}`;
+    button.textContent = `${hotspot.action_type === 'info' ? 'i' : 'â†’'} ${hotspot.title || (hotspot.action_type === 'info' ? 'Information' : 'Panorama')}`;
     button.addEventListener('click', () => {
       if (hotspot.action_type === 'info') {
         $('infoTitle').textContent = hotspot.title || 'Information';
@@ -50,7 +50,7 @@
     if (!item.available || !item.local_path) {
       const message = document.createElement('div');
       message.className = 'unavailable';
-      message.textContent = 'Diese Mediendatei war beim Export nicht verfügbar.';
+      message.textContent = 'Diese Mediendatei war beim Export nicht verfÃ¼gbar.';
       viewer.appendChild(message);
       return;
     }
@@ -109,14 +109,14 @@
       image.loading = 'lazy';
     } else {
       image.className = 'card-placeholder';
-      image.textContent = item.type === 'video' ? '360° Video' : 'Panorama';
+      image.textContent = item.type === 'video' ? '360Â° Video' : 'Panorama';
     }
     const body = document.createElement('span');
     body.className = 'card-body';
     const title = document.createElement('strong');
     title.textContent = item.title || `Medium ${item.id}`;
     const type = document.createElement('span');
-    type.textContent = `${item.type === 'video' ? 'Video' : 'Foto'}${item.available ? '' : ' · Datei fehlt'}`;
+    type.textContent = `${item.type === 'video' ? 'Video' : 'Foto'}${item.available ? '' : ' Â· Datei fehlt'}`;
     body.append(title, type);
     card.append(image, body);
     card.addEventListener('click', () => openMedia(state.tour.media.indexOf(item)));
@@ -182,9 +182,9 @@
         maxZoom: Number.isFinite(source.max_zoom) ? source.max_zoom : 22,
         attribution: source.attribution || ''
       }).on('tileerror', () => {
-        $('mapStatus').textContent = 'Einige Kartenkacheln konnten nicht geladen werden. Galerie und Viewer bleiben verfügbar.';
+        $('mapStatus').textContent = 'Einige Kartenkacheln konnten nicht geladen werden. Galerie und Viewer bleiben verfÃ¼gbar.';
       }).addTo(map);
-      $('mapStatus').textContent = `Offline-Karte „${source.name}“ · Raster-MBTiles`;
+      $('mapStatus').textContent = `Offline-Karte â€ž${source.name}â€œ Â· Raster-MBTiles`;
     } else {
       $('mapStatus').textContent = 'Keine Offline-Basiskarte enthalten. GPS-Marker und GPX-Tracks werden auf neutralem Hintergrund dargestellt.';
     }
@@ -248,11 +248,11 @@
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
     map.once('load', () => {
       addMapLibreOverlays(map);
-      $('mapStatus').textContent = `Offline-Karte „${source.name}“ · Vector-MBTiles`;
+      $('mapStatus').textContent = `Offline-Karte â€ž${source.name}â€œ Â· Vector-MBTiles`;
     });
     map.on('error', event => {
       console.error('Offline-Kartenfehler:', event.error || event);
-      $('mapStatus').textContent = 'Die Offline-Karte konnte nicht vollständig geladen werden. Galerie und Viewer bleiben verfügbar.';
+      $('mapStatus').textContent = 'Die Offline-Karte konnte nicht vollstÃ¤ndig geladen werden. Galerie und Viewer bleiben verfÃ¼gbar.';
     });
     return map;
   }
@@ -269,7 +269,7 @@
           : createLeafletMap();
       } catch (error) {
         console.error('Karte konnte nicht initialisiert werden:', error);
-        $('mapStatus').textContent = 'Die Karte konnte nicht initialisiert werden. Galerie und Viewer bleiben verfügbar.';
+        $('mapStatus').textContent = 'Die Karte konnte nicht initialisiert werden. Galerie und Viewer bleiben verfÃ¼gbar.';
       }
     }
     setTimeout(() => {
@@ -310,3 +310,4 @@
   });
   initialize();
 }());
+

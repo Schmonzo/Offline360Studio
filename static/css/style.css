@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   --bg: #0d0e11;
   --panel: #17191f;
   --panel2: #20232b;
@@ -301,3 +301,4 @@ button.danger { border-color:#d95454; color:#ffd3d3; }
 @media (max-width: 980px) { body { grid-template-columns: 1fr; } .sidebar { position:absolute; z-index:5; width:360px; max-width:92vw; height:100vh; } }
 @media (max-width: 720px) { .admin-panel { padding:12px; } .admin-layout { grid-template-columns:1fr; grid-template-rows:auto minmax(0, 1fr); } .admin-navigation { flex-direction:row; padding:8px; border-right:0; border-bottom:1px solid var(--line); overflow-x:auto; overflow-y:hidden; scroll-snap-type:x proximity; } .admin-nav-item { flex:0 0 auto; width:auto; white-space:nowrap; scroll-snap-align:start; } .admin-nav-item[aria-selected="true"] { box-shadow:inset 0 -3px 0 var(--accent); } .admin-section { padding:16px; } }
 @media (max-width: 600px) { .project-card { grid-template-columns:96px minmax(0, 1fr); } .project-card-visual { height:68px; } .video360__controls { left:8px; right:8px; bottom:8px; grid-template-columns:auto 1fr auto; } .video360__time { min-width:0; } .video360__volume, .video360__controls button:last-child { display:none; } .viewer-controls { right:8px; bottom:8px; } .stage.video-mode .viewer-controls { bottom:74px; right:8px; } .tour-navigation { left:8px; bottom:8px; } .stage.video-mode .tour-navigation { bottom:74px; } .viewer-message { bottom:8px; } .hotspot-marker { max-width:180px; } .hotspot-marker__label { max-width:110px; } .hotspot-dialog__content { padding:20px; } .hotspot-dialog__actions { flex-direction:column; } .hotspot-dialog__actions button { width:100%; } .backup-actions, .offline-map-rename { grid-template-columns:1fr !important; } .admin-panel { width:100%; } .gps-coordinate-grid { grid-template-columns:1fr; } .topbar { left:8px; right:8px; } .stage-actions { flex-direction:column; } .map-controls { left:8px; right:8px; top:114px; width:auto; max-height:calc(100% - 130px); } }
+

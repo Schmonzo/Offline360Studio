@@ -1,4 +1,4 @@
-@echo off
+﻿@echo off
 setlocal
 cd /d "%~dp0"
 if not exist "server.exe" (
@@ -13,3 +13,4 @@ if errorlevel 1 (
   pause
 )
 endlocal
+

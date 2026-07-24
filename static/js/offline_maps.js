@@ -1,4 +1,4 @@
-(() => {
+﻿(() => {
   'use strict';
 
   const form = document.getElementById('offlineMapImportForm');
@@ -59,19 +59,19 @@
     neutral.value = '';
     neutral.textContent = activeSource
       ? 'Keine Basiskarte'
-      : 'Keine Basiskarte · Aktiv';
+      : 'Keine Basiskarte Â· Aktiv';
     basemapSelect.appendChild(neutral);
     sources.forEach(source => {
       const option = document.createElement('option');
       option.value = String(source.source_id);
-      option.textContent = `${source.name} · ${window.mapSources.mapTypeLabel(source)}${source.active ? ' · Aktiv' : ''}`;
+      option.textContent = `${source.name} Â· ${window.mapSources.mapTypeLabel(source)}${source.active ? ' Â· Aktiv' : ''}`;
       basemapSelect.appendChild(option);
     });
     basemapSelect.value = activeSource ? String(activeSource.source_id) : '';
     if (basemapStatus) {
       basemapStatus.textContent = activeSource
-        ? `Aktiv: ${activeSource.name} · ${window.mapSources.mapTypeLabel(activeSource)}`
-        : 'Aktiv: Keine Basiskarte · neutraler Hintergrund';
+        ? `Aktiv: ${activeSource.name} Â· ${window.mapSources.mapTypeLabel(activeSource)}`
+        : 'Aktiv: Keine Basiskarte Â· neutraler Hintergrund';
     }
   }
 
@@ -102,9 +102,9 @@
     const details = document.createElement('span');
     const zoom = source.min_zoom === null && source.max_zoom === null
       ? 'Zoom unbekannt'
-      : `Zoom ${source.min_zoom ?? '–'}–${source.max_zoom ?? '–'}`;
+      : `Zoom ${source.min_zoom ?? 'â€“'}â€“${source.max_zoom ?? 'â€“'}`;
     const schema = source.schema_type === 'normalized' ? 'Normalisiert' : 'Flat';
-    details.textContent = `${window.mapSources.mapTypeLabel(source)} · ${String(source.format).toUpperCase()} · ${schema} · ${zoom} · ${fileSize(source.file_size)}`;
+    details.textContent = `${window.mapSources.mapTypeLabel(source)} Â· ${String(source.format).toUpperCase()} Â· ${schema} Â· ${zoom} Â· ${fileSize(source.file_size)}`;
     heading.append(state, details);
     if (window.mapSources.mapType(source) === 'vector') {
       const layerInfo = document.createElement('span');
@@ -147,18 +147,18 @@
         updateSource(source, { active: true }, `${source.name} ist jetzt aktiv.`);
       }));
     }
-    const deleteButton = button('Löschen', 'danger', () => {
+    const deleteButton = button('LÃ¶schen', 'danger', () => {
       if (deleteButton.dataset.confirm !== 'true') {
         deleteButton.dataset.confirm = 'true';
-        deleteButton.textContent = 'Löschen bestätigen';
-        setStatus(`Löschen von ${source.name} durch erneutes Drücken bestätigen.`);
+        deleteButton.textContent = 'LÃ¶schen bestÃ¤tigen';
+        setStatus(`LÃ¶schen von ${source.name} durch erneutes DrÃ¼cken bestÃ¤tigen.`);
         return;
       }
       deleteSource(source);
     });
     deleteButton.addEventListener('blur', () => {
       deleteButton.dataset.confirm = 'false';
-      deleteButton.textContent = 'Löschen';
+      deleteButton.textContent = 'LÃ¶schen';
     });
     actions.appendChild(deleteButton);
     row.append(heading, rename, actions);
@@ -193,12 +193,12 @@
     const selectedValue = basemapSelect.value;
     const sourceId = selectedValue === '' ? null : Number(selectedValue);
     if (sourceId !== null && !sources.some(source => source.source_id === sourceId)) {
-      setStatus('Die gewählte Kartenquelle ist nicht mehr verfügbar.', true);
+      setStatus('Die gewÃ¤hlte Kartenquelle ist nicht mehr verfÃ¼gbar.', true);
       renderBasemapSelect();
       return;
     }
     basemapSelect.disabled = true;
-    if (basemapStatus) basemapStatus.textContent = 'Basiskarte wird gewechselt …';
+    if (basemapStatus) basemapStatus.textContent = 'Basiskarte wird gewechselt â€¦';
     try {
       await requestJson('/api/maps/active', {
         method: 'PATCH',
@@ -218,7 +218,7 @@
   async function deleteSource(source) {
     try {
       await requestJson(`/api/maps/sources/${source.source_id}`, { method: 'DELETE' });
-      setStatus(`${source.name} wurde gelöscht.`);
+      setStatus(`${source.name} wurde gelÃ¶scht.`);
       await loadSources();
       if (source.active) notifyMap();
     } catch (error) {
@@ -231,14 +231,14 @@
       event.preventDefault();
       const file = fileInput.files?.[0];
       if (!file || pending) {
-        setStatus('Bitte zuerst eine .mbtiles-Datei auswählen.', true);
+        setStatus('Bitte zuerst eine .mbtiles-Datei auswÃ¤hlen.', true);
         fileInput.focus();
         return;
       }
       pending = true;
       importButton.disabled = true;
       fileInput.disabled = true;
-      setStatus('MBTiles-Datei wird geprüft und importiert …');
+      setStatus('MBTiles-Datei wird geprÃ¼ft und importiert â€¦');
       const body = new FormData();
       body.append('file', file);
       try {
@@ -263,3 +263,4 @@
   window.offlineMapsUi = { refresh: loadSources };
   loadSources();
 })();
+

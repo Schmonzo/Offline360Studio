@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import sqlite3
 
@@ -126,3 +126,4 @@ def upgrade(conn: sqlite3.Connection) -> None:
             END
             """
         )
+

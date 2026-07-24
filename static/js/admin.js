@@ -1,4 +1,4 @@
-let hotspotAdminEnabled = false;
+﻿let hotspotAdminEnabled = false;
 let hotspotAdminCurrentItem = null;
 let hotspotAdminMediaItems = [];
 let editedHotspot = null;
@@ -112,13 +112,13 @@ async function resetStartView() {
     if (!response.ok) {
       throw new Error(apiErrorMessage(
         data,
-        `Startansicht konnte nicht zurückgesetzt werden (HTTP ${response.status}).`
+        `Startansicht konnte nicht zurÃ¼ckgesetzt werden (HTTP ${response.status}).`
       ));
     }
     applyStartViewResult(data.item);
-    setStartViewStatus('Startansicht zurückgesetzt; es gelten wieder die Standardwerte.');
+    setStartViewStatus('Startansicht zurÃ¼ckgesetzt; es gelten wieder die Standardwerte.');
   } catch (error) {
-    setStartViewStatus(`Fehler beim Zurücksetzen der Startansicht: ${error.message || 'Unbekannter Fehler.'}`);
+    setStartViewStatus(`Fehler beim ZurÃ¼cksetzen der Startansicht: ${error.message || 'Unbekannter Fehler.'}`);
   } finally {
     startViewRequestPending = false;
     updateStartViewControls();
@@ -164,7 +164,7 @@ function populateHotspotTargets(selectedId = null) {
 
   const placeholder = document.createElement('option');
   placeholder.value = '';
-  placeholder.textContent = 'Zielpanorama wählen';
+  placeholder.textContent = 'Zielpanorama wÃ¤hlen';
   hotspotTarget.appendChild(placeholder);
 
   hotspotAdminMediaItems
@@ -270,7 +270,7 @@ async function saveHotspot(event) {
   setHotspotEditorError();
 
   if (hotspotType.value === 'panorama' && !hotspotTarget.value) {
-    setHotspotEditorError('Bitte ein Zielpanorama auswählen.');
+    setHotspotEditorError('Bitte ein Zielpanorama auswÃ¤hlen.');
     hotspotTarget.focus();
     return;
   }
@@ -302,7 +302,7 @@ async function saveHotspot(event) {
 
 async function deleteHotspot() {
   if (!editedHotspot || hotspotRequestPending) return;
-  if (!window.confirm('Diesen Hotspot wirklich löschen?')) return;
+  if (!window.confirm('Diesen Hotspot wirklich lÃ¶schen?')) return;
 
   setHotspotEditorError();
   setHotspotRequestPending(true);
@@ -312,13 +312,13 @@ async function deleteHotspot() {
     });
     const data = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new Error(apiErrorMessage(data, `Löschen fehlgeschlagen (HTTP ${response.status}).`));
+      throw new Error(apiErrorMessage(data, `LÃ¶schen fehlgeschlagen (HTTP ${response.status}).`));
     }
     setHotspotRequestPending(false);
     closeHotspotEditor();
     window.viewerControls?.reloadCurrentHotspots();
   } catch (error) {
-    setHotspotEditorError(error.message || 'Der Hotspot konnte nicht gelöscht werden.');
+    setHotspotEditorError(error.message || 'Der Hotspot konnte nicht gelÃ¶scht werden.');
     setHotspotRequestPending(false);
   }
 }
@@ -364,8 +364,8 @@ document.addEventListener('hotspotplacementchange', event => {
   addHotspotBtn.classList.toggle('active', active);
   addHotspotBtn.setAttribute('aria-pressed', String(active));
   addHotspotBtn.textContent = active
-    ? 'Position im Panorama wählen (Esc zum Abbrechen)'
-    : 'Hotspot hinzufügen';
+    ? 'Position im Panorama wÃ¤hlen (Esc zum Abbrechen)'
+    : 'Hotspot hinzufÃ¼gen';
 });
 
 window.viewerControls?.setHotspotEditCallback(showHotspotEditor);
@@ -385,7 +385,7 @@ async function loadSystemDiagnostics() {
     const report = await response.json();
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const values = [
-      ['Version', report.panorama_studio_version],
+      ['Version', report.OFFLINE360_STUDIO_version],
       ['Python', report.python_version],
       ['Betriebssystem', report.operating_system],
       ['Datenbank', report.paths.database],
@@ -400,7 +400,7 @@ async function loadSystemDiagnostics() {
       ['Daten beschreibbar', report.writable.data ? 'Ja' : 'Nein'],
       ['Medien beschreibbar', report.writable.media ? 'Ja' : 'Nein'],
       ['Portable Server', report.portable_server.present ? 'Vorhanden' : 'Fehlt'],
-      ['Server SHA-256', report.portable_server.sha256_valid ? 'Gültig' : 'Ungültig'],
+      ['Server SHA-256', report.portable_server.sha256_valid ? 'GÃ¼ltig' : 'UngÃ¼ltig'],
       ['Letztes Backup', report.last_backup_at || 'Nicht ermittelbar']
     ];
     container.replaceChildren();
@@ -413,8 +413,9 @@ async function loadSystemDiagnostics() {
     }
     status.textContent = 'Diagnose aktuell.';
   } catch (error) {
-    status.textContent = `Diagnose nicht verfügbar: ${error.message || 'Unbekannter Fehler'}`;
+    status.textContent = `Diagnose nicht verfÃ¼gbar: ${error.message || 'Unbekannter Fehler'}`;
   }
 }
 
 loadSystemDiagnostics();
+

@@ -1,4 +1,4 @@
-let projectSummaries = [];
+﻿let projectSummaries = [];
 let projectMediaItems = [];
 let editedProject = null;
 let activeTour = null;
@@ -91,7 +91,7 @@ function fillSelect(select, firstLabel, selectedValue) {
 
 function renderProjectSelectors() {
   fillSelect(tourSelect, 'Keine Tour (Galerie)', activeTour?.id);
-  fillSelect(adminProjectSelect, 'Projekt auswählen', editedProject?.id);
+  fillSelect(adminProjectSelect, 'Projekt auswÃ¤hlen', editedProject?.id);
   renderProjectCards();
   if (typeof updateStats === 'function') updateStats();
 }
@@ -188,7 +188,7 @@ function updateTourNavigation() {
   const items = visibleTourItems();
   const index = currentTourIndex();
   tourNavigation.classList.toggle('hidden', !activeTour);
-  tourPosition.textContent = index >= 0 ? `${index + 1} / ${items.length}` : `– / ${items.length}`;
+  tourPosition.textContent = index >= 0 ? `${index + 1} / ${items.length}` : `â€“ / ${items.length}`;
   tourPreviousBtn.disabled = index <= 0;
   tourNextBtn.disabled = index < 0 || index >= items.length - 1;
 }
@@ -316,12 +316,12 @@ function renderProjectMedia() {
     const row = document.createElement('li');
     const label = document.createElement('span');
     label.className = 'project-media-title';
-    label.textContent = `${item.title || item.file_path} · ${item.type}`;
+    label.textContent = `${item.title || item.file_path} Â· ${item.type}`;
 
     const actions = document.createElement('div');
     actions.className = 'project-media-actions';
-    const up = projectMediaButton('↑', 'Nach oben', () => reorderMedia(index, -1));
-    const down = projectMediaButton('↓', 'Nach unten', () => reorderMedia(index, 1));
+    const up = projectMediaButton('â†‘', 'Nach oben', () => reorderMedia(index, -1));
+    const down = projectMediaButton('â†“', 'Nach unten', () => reorderMedia(index, 1));
     up.disabled = index === 0;
     down.disabled = index === editedProject.media.length - 1;
     actions.append(up, down);
@@ -362,7 +362,7 @@ function renderProjectEditor() {
   adminProjectSelect.value = editedProject ? String(editedProject.id) : '';
   projectName.value = editedProject?.name || '';
   projectDescription.value = editedProject?.description || '';
-  saveProjectBtn.textContent = editedProject ? 'Änderungen speichern' : 'Projekt anlegen';
+  saveProjectBtn.textContent = editedProject ? 'Ã„nderungen speichern' : 'Projekt anlegen';
   deleteProjectBtn.disabled = projectRequestPending || !editedProject;
   projectMediaEditor.classList.toggle('hidden', !editedProject);
   renderProjectCoverPreview();
@@ -430,7 +430,7 @@ async function saveProject(event) {
 
 async function deleteProject() {
   if (!editedProject || projectRequestPending) return;
-  if (!window.confirm(`Projekt „${editedProject.name}“ wirklich löschen? Die Medien bleiben erhalten.`)) return;
+  if (!window.confirm(`Projekt â€ž${editedProject.name}â€œ wirklich lÃ¶schen? Die Medien bleiben erhalten.`)) return;
   const projectId = editedProject.id;
   setProjectPending(true);
   setProjectError();
@@ -479,7 +479,7 @@ async function addProjectMedia() {
 
 async function removeProjectMedia(item) {
   if (!editedProject || projectRequestPending) return;
-  if (!window.confirm(`„${item.title || item.file_path}“ aus diesem Projekt entfernen?`)) return;
+  if (!window.confirm(`â€ž${item.title || item.file_path}â€œ aus diesem Projekt entfernen?`)) return;
   setProjectPending(true);
   setProjectError();
   try {
@@ -608,3 +608,4 @@ window.projectUi = {
 renderProjectEditor();
 updateTourNavigation();
 loadProjects();
+

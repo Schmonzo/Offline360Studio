@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import sqlite3
 
@@ -99,3 +99,4 @@ def upgrade(conn: sqlite3.Connection) -> None:
         "CREATE INDEX IF NOT EXISTS idx_hotspots_target_media_id "
         "ON hotspots(target_media_id)"
     )
+

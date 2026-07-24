@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import os
@@ -50,7 +50,7 @@ def wait_until_ready(base_url: str, process: subprocess.Popen, timeout: float = 
 
 def main() -> int:
     port = free_port()
-    production_database = ROOT / "data" / "panorama_studio.db"
+    production_database = ROOT / "data" / "OFFLINE360_STUDIO.db"
     production_state = (
         (production_database.stat().st_size, production_database.stat().st_mtime_ns)
         if production_database.exists()
@@ -65,9 +65,9 @@ def main() -> int:
         environment = os.environ.copy()
         environment.update(
             {
-                "PANORAMA_STUDIO_RUNTIME_ROOT": str(runtime_root),
-                "PANORAMA_STUDIO_PORT": str(port),
-                "PANORAMA_STUDIO_NO_BROWSER": "1",
+                "OFFLINE360_STUDIO_RUNTIME_ROOT": str(runtime_root),
+                "OFFLINE360_STUDIO_PORT": str(port),
+                "OFFLINE360_STUDIO_NO_BROWSER": "1",
                 "PYTHONUNBUFFERED": "1",
             }
         )
@@ -135,10 +135,11 @@ def main() -> int:
             if production_database.exists()
             else None
         )
-        assert current_state == production_state, "Produktive Datenbank wurde verändert."
+        assert current_state == production_state, "Produktive Datenbank wurde verÃ¤ndert."
     print("Smoke-Test erfolgreich.")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

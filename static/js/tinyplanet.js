@@ -1,4 +1,4 @@
-// Stereographic Tiny Planet / Rabbit Hole renderer for equirectangular photos.
+﻿// Stereographic Tiny Planet / Rabbit Hole renderer for equirectangular photos.
 // Three.js is loaded on demand from the local offline bundle.
 (function () {
   'use strict';
@@ -73,7 +73,7 @@
         `${name}-Ansicht. Ziehen zum Drehen, Mausrad oder Pinch zum Zoomen.`
       );
       if (this.status && !this.status.hidden) {
-        this.status.textContent = `${name} wird geladen …`;
+        this.status.textContent = `${name} wird geladen â€¦`;
       }
     }
 
@@ -89,7 +89,7 @@
       this.status = document.createElement('div');
       this.status.className = 'tinyplanet__status';
       this.status.setAttribute('role', 'status');
-      this.status.textContent = 'Tiny Planet wird geladen …';
+      this.status.textContent = 'Tiny Planet wird geladen â€¦';
 
       this.root.append(this.canvasHost, this.status);
       this.container.append(this.root);
@@ -137,9 +137,9 @@
         if (this.destroyed) return;
         console.error('Tiny-Planet-Initialisierung fehlgeschlagen:', error);
         const message = this.initializationPhase === 'webgl'
-          ? 'WebGL ist nicht verfügbar oder wurde vom Browser deaktiviert.'
+          ? 'WebGL ist nicht verfÃ¼gbar oder wurde vom Browser deaktiviert.'
           : this.initializationPhase === 'texture'
-            ? 'Die Bildtextur für Tiny Planet konnte nicht geladen werden.'
+            ? 'Die Bildtextur fÃ¼r Tiny Planet konnte nicht geladen werden.'
             : 'Der lokale Three.js-Renderer konnte nicht geladen werden.';
         this.status.textContent = message;
         this.status.classList.add('tinyplanet__status--error');
@@ -405,3 +405,4 @@
   window.TinyPlanetRenderer = TinyPlanetRenderer;
   window.STEREOGRAPHIC_PROJECTION_MODES = PROJECTION_MODES;
 })();
+

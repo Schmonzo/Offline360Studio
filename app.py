@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import math
@@ -110,7 +110,7 @@ def configure_logging(log_path: Path | None = None) -> RotatingFileHandler:
     target.parent.mkdir(parents=True, exist_ok=True)
     for handler in app.logger.handlers:
         if isinstance(handler, RotatingFileHandler) and getattr(
-            handler, "_panorama_studio", False
+            handler, "_OFFLINE360_STUDIO", False
         ):
             return handler
     handler = RotatingFileHandler(
@@ -119,7 +119,7 @@ def configure_logging(log_path: Path | None = None) -> RotatingFileHandler:
         backupCount=5,
         encoding="utf-8",
     )
-    handler._panorama_studio = True
+    handler._OFFLINE360_STUDIO = True
     handler.setFormatter(
         logging.Formatter(
             "%(asctime)s %(levelname)s %(name)s %(message)s",
@@ -136,7 +136,7 @@ def configure_logging(log_path: Path | None = None) -> RotatingFileHandler:
 def startup_check() -> list[str]:
     warnings = []
     configure_logging()
-    app.logger.info("Panorama Studio %s startet", __version__)
+    app.logger.info("Offline360 Studio %s startet", __version__)
     try:
         ensure_dirs()
         init_db()
@@ -149,12 +149,12 @@ def startup_check() -> list[str]:
             conn.execute("SELECT 1").fetchone()
         print(f"[OK] Datenbank bereit, Schema-Version {LATEST_SCHEMA_VERSION}.")
     except (OSError, sqlite3.Error, MigrationError) as exc:
-        app.logger.exception("Kritischer Fehler bei der Startprüfung")
-        raise RuntimeError(f"Kritische Startprüfung fehlgeschlagen: {exc}") from exc
+        app.logger.exception("Kritischer Fehler bei der StartprÃ¼fung")
+        raise RuntimeError(f"Kritische StartprÃ¼fung fehlgeschlagen: {exc}") from exc
 
     server_status = portable_export.server_hash_status(PORTABLE_SERVER_EXE)
     if server_status["sha256_valid"]:
-        print("[OK] portable-server SHA-256 ist gültig.")
+        print("[OK] portable-server SHA-256 ist gÃ¼ltig.")
     else:
         warning = f"portable-server: {server_status['status']}"
         warnings.append(warning)
@@ -368,7 +368,7 @@ def map_source_payload(row: sqlite3.Row) -> dict[str, Any]:
 def handle_request_too_large(_error):
     return api_error(
         "request_too_large",
-        "Die Anfrage überschreitet das zulässige Größenlimit.",
+        "Die Anfrage Ã¼berschreitet das zulÃ¤ssige GrÃ¶ÃŸenlimit.",
         413,
     )
 
@@ -535,7 +535,7 @@ def validate_source_media(conn: sqlite3.Connection, media_id: int):
     if row["type"] != "photo":
         return api_error(
             "invalid_source_media",
-            "Hotspots können nur für Fotos angelegt werden.",
+            "Hotspots kÃ¶nnen nur fÃ¼r Fotos angelegt werden.",
             400,
         )
     return None
@@ -559,14 +559,14 @@ def validate_hotspot_data(
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             return None, api_error(
                 "invalid_coordinates",
-                "yaw und pitch müssen endliche Zahlen sein.",
+                "yaw und pitch mÃ¼ssen endliche Zahlen sein.",
                 400,
             )
         value = float(value)
         if not math.isfinite(value):
             return None, api_error(
                 "invalid_coordinates",
-                "yaw und pitch müssen endliche Zahlen sein.",
+                "yaw und pitch mÃ¼ssen endliche Zahlen sein.",
                 400,
             )
         coordinates[field] = value
@@ -574,7 +574,7 @@ def validate_hotspot_data(
     if not -math.pi / 2 <= coordinates["pitch"] <= math.pi / 2:
         return None, api_error(
             "invalid_pitch",
-            "pitch muss zwischen -π/2 und π/2 liegen.",
+            "pitch muss zwischen -Ï€/2 und Ï€/2 liegen.",
             400,
         )
 
@@ -586,7 +586,7 @@ def validate_hotspot_data(
         ):
             return None, api_error(
                 "invalid_target_media",
-                "Ein Panorama-Hotspot benötigt target_media_id.",
+                "Ein Panorama-Hotspot benÃ¶tigt target_media_id.",
                 400,
             )
         target = media_row(conn, target_media_id)
@@ -655,7 +655,7 @@ def validate_start_view(data: dict[str, Any]):
     if set(data) != allowed:
         return None, api_error(
             "invalid_start_view",
-            "yaw, pitch und fov müssen vollständig angegeben werden.",
+            "yaw, pitch und fov mÃ¼ssen vollstÃ¤ndig angegeben werden.",
             400,
         )
 
@@ -665,14 +665,14 @@ def validate_start_view(data: dict[str, Any]):
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             return None, api_error(
                 "invalid_start_view",
-                "yaw, pitch und fov müssen endliche Zahlen sein.",
+                "yaw, pitch und fov mÃ¼ssen endliche Zahlen sein.",
                 400,
             )
         value = float(value)
         if not math.isfinite(value):
             return None, api_error(
                 "invalid_start_view",
-                "yaw, pitch und fov müssen endliche Zahlen sein.",
+                "yaw, pitch und fov mÃ¼ssen endliche Zahlen sein.",
                 400,
             )
         values[field] = value
@@ -680,13 +680,13 @@ def validate_start_view(data: dict[str, Any]):
     if not -math.pi / 2 <= values["pitch"] <= math.pi / 2:
         return None, api_error(
             "invalid_pitch",
-            "pitch muss zwischen -π/2 und π/2 liegen.",
+            "pitch muss zwischen -Ï€/2 und Ï€/2 liegen.",
             400,
         )
     if not MIN_START_FOV <= values["fov"] <= MAX_START_FOV:
         return None, api_error(
             "invalid_fov",
-            "fov muss zwischen 25° und 165° liegen.",
+            "fov muss zwischen 25Â° und 165Â° liegen.",
             400,
         )
     return values, None
@@ -728,7 +728,7 @@ def api_diagnostics_report():
         json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
         mimetype="application/json",
         headers={
-            "Content-Disposition": "attachment; filename=panorama-studio-diagnostics.json",
+            "Content-Disposition": "attachment; filename=offline360-studio-diagnostics.json",
             "Cache-Control": "no-store",
             "X-Content-Type-Options": "nosniff",
         },
@@ -808,14 +808,14 @@ def api_media_gps(media_id: int):
             if "latitude" not in payload or "longitude" not in payload:
                 return api_error(
                     "missing_coordinates",
-                    "latitude und longitude müssen angegeben werden.",
+                    "latitude und longitude mÃ¼ssen angegeben werden.",
                     400,
                 )
             source = payload.get("gps_source", "manual")
             if source != "manual":
                 return api_error(
                     "invalid_gps_source",
-                    "Manuell gespeicherte Positionen müssen gps_source 'manual' verwenden.",
+                    "Manuell gespeicherte Positionen mÃ¼ssen gps_source 'manual' verwenden.",
                     400,
                 )
             try:
@@ -828,7 +828,7 @@ def api_media_gps(media_id: int):
             except (TypeError, ValueError):
                 return api_error(
                     "invalid_gps",
-                    "Koordinaten und Höhe müssen endlich und im gültigen Bereich sein.",
+                    "Koordinaten und HÃ¶he mÃ¼ssen endlich und im gÃ¼ltigen Bereich sein.",
                     400,
                 )
             conn.execute(
@@ -1194,7 +1194,7 @@ def api_media_start_view(media_id: int):
         if media["type"] != "photo":
             return api_error(
                 "invalid_media_type",
-                "Eine Startansicht kann nur für Foto-Medien gespeichert werden.",
+                "Eine Startansicht kann nur fÃ¼r Foto-Medien gespeichert werden.",
                 400,
             )
 
@@ -1429,7 +1429,7 @@ def api_rescan():
         app.logger.error("Rescan abgebrochen: Laufzeit-Medienordner fehlt")
         return api_error(
             "media_directory_missing",
-            "Der Medienordner fehlt. Bitte Panorama Studio neu starten.",
+            "Der Medienordner fehlt. Bitte Offline360 Studio neu starten.",
             409,
         )
     try:
@@ -1452,7 +1452,7 @@ def api_rescan():
 def api_gpx_import():
     uploaded = request.files.get("file")
     if uploaded is None or not uploaded.filename:
-        return api_error("gpx_file_missing", "Bitte eine GPX-Datei auswählen.", 400)
+        return api_error("gpx_file_missing", "Bitte eine GPX-Datei auswÃ¤hlen.", 400)
     if Path(uploaded.filename).suffix.lower() != ".gpx":
         return api_error(
             "invalid_file_type",
@@ -1461,7 +1461,7 @@ def api_gpx_import():
         )
     safe_name = secure_filename(Path(uploaded.filename).name)
     if not safe_name:
-        return api_error("invalid_filename", "Der GPX-Dateiname ist ungültig.", 400)
+        return api_error("invalid_filename", "Der GPX-Dateiname ist ungÃ¼ltig.", 400)
     project_id, error = parse_optional_project_id(request.form.get("project_id"))
     if error:
         return error
@@ -1611,7 +1611,7 @@ def api_map_source_import():
     uploaded = request.files.get("file")
     if uploaded is None or not uploaded.filename:
         return api_error(
-            "map_file_missing", "Bitte eine MBTiles-Datei auswählen.", 400
+            "map_file_missing", "Bitte eine MBTiles-Datei auswÃ¤hlen.", 400
         )
     if Path(uploaded.filename).suffix.lower() != ".mbtiles":
         return api_error(
@@ -1688,7 +1688,7 @@ def api_map_source_update(source_id: int):
             "invalid_field", "Erlaubt sind nur name und active.", 400
         )
     if not payload:
-        return api_error("invalid_request", "Es wurde keine Änderung angegeben.", 400)
+        return api_error("invalid_request", "Es wurde keine Ã„nderung angegeben.", 400)
     name = payload.get("name")
     if name is not None and (
         not isinstance(name, str) or not name.strip() or len(name.strip()) > 200
@@ -1754,10 +1754,10 @@ def api_map_source_delete(source_id: int):
     except mbtiles.MBTilesError as exc:
         return api_error(exc.code, exc.message, exc.status)
     except OSError:
-        app.logger.exception("MBTiles-Datei konnte nicht gelöscht werden")
+        app.logger.exception("MBTiles-Datei konnte nicht gelÃ¶scht werden")
         return api_error(
             "map_delete_failed",
-            "Die MBTiles-Datei konnte nicht gelöscht werden.",
+            "Die MBTiles-Datei konnte nicht gelÃ¶scht werden.",
             500,
         )
     return jsonify({"status": "ok"})
@@ -1831,7 +1831,7 @@ def api_map_source_style(source_id: int):
     if row["map_type"] != "vector":
         return api_error(
             "map_style_unavailable",
-            "Für Raster-MBTiles ist kein MapLibre-Style verfügbar.",
+            "FÃ¼r Raster-MBTiles ist kein MapLibre-Style verfÃ¼gbar.",
             415,
         )
     response = jsonify(mbtiles.generate_style(source_id, dict(row)))
@@ -1872,7 +1872,7 @@ def api_map_tile(source_id: int, z: int, x: int, y: int):
     if content_type is None:
         return api_error(
             "map_format_unsupported",
-            "Das Format der Kartenquelle wird nicht unterstützt.",
+            "Das Format der Kartenquelle wird nicht unterstÃ¼tzt.",
             415,
         )
     headers = {
@@ -1904,7 +1904,7 @@ def api_backup_export():
     ):
         return api_error(
             "invalid_request",
-            "includes_media und includes_maps müssen als Boolean angegeben werden.",
+            "includes_media und includes_maps mÃ¼ssen als Boolean angegeben werden.",
             400,
         )
 
@@ -1983,7 +1983,7 @@ def api_portable_tour_export():
     ):
         return api_error(
             "invalid_request",
-            "project_id, filename und alle Exportoptionen müssen gültig angegeben werden.",
+            "project_id, filename und alle Exportoptionen mÃ¼ssen gÃ¼ltig angegeben werden.",
             400,
         )
 
@@ -2049,7 +2049,7 @@ def api_portable_tour_export():
 def api_backup_import():
     uploaded = request.files.get("file")
     if uploaded is None or not uploaded.filename:
-        return api_error("backup_file_missing", "Bitte eine ZIP-Datei auswählen.", 400)
+        return api_error("backup_file_missing", "Bitte eine ZIP-Datei auswÃ¤hlen.", 400)
     if Path(uploaded.filename).suffix.lower() != ".zip":
         return api_error("invalid_file_type", "Es werden nur ZIP-Dateien akzeptiert.", 415)
 
@@ -2158,12 +2158,13 @@ if __name__ == "__main__":
     except RuntimeError as exc:
         print(f"[FEHLER] {exc}")
         raise SystemExit(1) from exc
-    port = int(os.environ.get("PANORAMA_STUDIO_PORT", "5000"))
+    port = int(os.environ.get("OFFLINE360_STUDIO_PORT", "5000"))
     url = f"http://127.0.0.1:{port}"
-    print(f"Panorama Studio {__version__} läuft: {url}")
-    if os.environ.get("PANORAMA_STUDIO_NO_BROWSER") != "1":
+    print(f"Offline360 Studio {__version__} lÃ¤uft: {url}")
+    if os.environ.get("OFFLINE360_STUDIO_NO_BROWSER") != "1":
         try:
             webbrowser.open(url)
         except Exception:
             pass
     app.run(host="127.0.0.1", port=port, debug=False)
+

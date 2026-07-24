@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import math
 from datetime import datetime
@@ -126,3 +126,4 @@ def read_photo_metadata(path: Path) -> dict[str, float | str | None]:
         # Broken or incomplete metadata must never abort a media scan.
         pass
     return result
+

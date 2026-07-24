@@ -1,4 +1,4 @@
-\# Panorama Studio Vision
+﻿\# Offline360 Studio Vision
 
 
 
@@ -16,7 +16,7 @@ Stand: 02.07.2026
 
 
 
-Panorama Studio ist eine vollständig offlinefähige Desktop-Anwendung zur Verwaltung, Präsentation und Erstellung interaktiver 360°-Touren.
+Offline360 Studio ist eine vollstÃ¤ndig offlinefÃ¤hige Desktop-Anwendung zur Verwaltung, PrÃ¤sentation und Erstellung interaktiver 360Â°-Touren.
 
 
 
@@ -24,13 +24,13 @@ Der Fokus liegt auf:
 
 
 
-\- vollständiger Offline-Nutzung
+\- vollstÃ¤ndiger Offline-Nutzung
 
 \- einfacher Bedienung
 
 \- hoher Performance
 
-\- professioneller Präsentation
+\- professioneller PrÃ¤sentation
 
 \- langfristiger Wartbarkeit
 
@@ -46,7 +46,7 @@ Der Fokus liegt auf:
 
 
 
-Panorama Studio richtet sich an:
+Offline360 Studio richtet sich an:
 
 
 
@@ -56,7 +56,7 @@ Panorama Studio richtet sich an:
 
 \- Museen
 
-\- Städte
+\- StÃ¤dte
 
 \- Gemeinden
 
@@ -76,31 +76,31 @@ Panorama Studio richtet sich an:
 
 
 
-\# Unterstützte Medien
+\# UnterstÃ¼tzte Medien
 
 
 
-✔ 360° Fotos
+âœ” 360Â° Fotos
 
 
 
-✔ 360° Videos
+âœ” 360Â° Videos
 
 
 
-✔ normale Fotos
+âœ” normale Fotos
 
 
 
-✔ normale Videos
+âœ” normale Videos
 
 
 
-✔ Dokumente (PDF)
+âœ” Dokumente (PDF)
 
 
 
-✔ Audio
+âœ” Audio
 
 
 
@@ -108,7 +108,7 @@ Panorama Studio richtet sich an:
 
 
 
-\# Unterstützte Kameras
+\# UnterstÃ¼tzte Kameras
 
 
 
@@ -164,7 +164,7 @@ Panorama Studio richtet sich an:
 
 
 
-\- flüssiges Zoomen
+\- flÃ¼ssiges Zoomen
 
 \- Vollbild
 
@@ -174,7 +174,7 @@ Panorama Studio richtet sich an:
 
 \- Home-Position
 
-\- Touch-Unterstützung
+\- Touch-UnterstÃ¼tzung
 
 
 
@@ -298,7 +298,7 @@ macOS
 
 
 
-Panorama Studio soll sich wie eine professionelle Desktop-Anwendung anfühlen.
+Offline360 Studio soll sich wie eine professionelle Desktop-Anwendung anfÃ¼hlen.
 
 
 
@@ -314,7 +314,7 @@ Nicht wie eine Webseite.
 
 
 
-Panorama Studio soll eine der leistungsfähigsten Offline-Lösungen für virtuelle Rundgänge werden.
+Offline360 Studio soll eine der leistungsfÃ¤higsten Offline-LÃ¶sungen fÃ¼r virtuelle RundgÃ¤nge werden.
 
 
 
@@ -331,4 +331,5 @@ Modern.
 
 
 Einfach.
+
 

@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 import unittest
 
 
@@ -52,3 +52,4 @@ class ProjectAssetTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

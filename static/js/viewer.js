@@ -1,4 +1,4 @@
-// Panorama Studio media viewer
+﻿// Offline360 Studio media viewer
 // Robust viewer lifecycle for switching between multiple panoramas without refresh.
 
 let panoramaViewer = null;
@@ -99,7 +99,7 @@ function updateViewerModeUi() {
       : currentProjectionMode === 'rabbit-hole'
         ? 'Modus: Rabbit Hole'
       : currentVideoViewer
-        ? 'Modus: 360°-Video'
+        ? 'Modus: 360Â°-Video'
         : isPhoto
           ? 'Modus: Panorama'
           : 'Kein Medium';
@@ -290,7 +290,7 @@ function destroyCurrentScene() {
   try {
     currentVideoViewer?.destroy();
   } catch (error) {
-    console.warn('360°-Video cleanup warning:', error);
+    console.warn('360Â°-Video cleanup warning:', error);
   }
   currentVideoViewer = null;
 
@@ -324,7 +324,7 @@ function openInfoDialog(title, text) {
   if (!dialog || !titleElement || !textElement) return;
 
   titleElement.textContent = title || 'Information';
-  textElement.textContent = text || 'Für diesen Hotspot sind keine weiteren Informationen hinterlegt.';
+  textElement.textContent = text || 'FÃ¼r diesen Hotspot sind keine weiteren Informationen hinterlegt.';
 
   if (typeof dialog.showModal === 'function') {
     if (!dialog.open) dialog.showModal();
@@ -343,7 +343,7 @@ function closeInfoDialog() {
 
 function createHotspotElement(hotspot) {
   const marker = document.createElement('button');
-  const title = hotspot.title || (hotspot.action_type === 'panorama' ? 'Panorama öffnen' : 'Information öffnen');
+  const title = hotspot.title || (hotspot.action_type === 'panorama' ? 'Panorama Ã¶ffnen' : 'Information Ã¶ffnen');
   marker.type = 'button';
   marker.className = `hotspot-marker hotspot-marker--${hotspot.action_type}`;
   marker.classList.toggle('hotspot-marker--hidden', !hotspot.visible);
@@ -352,7 +352,7 @@ function createHotspotElement(hotspot) {
   const icon = document.createElement('span');
   icon.className = 'hotspot-marker__icon';
   icon.setAttribute('aria-hidden', 'true');
-  icon.textContent = hotspot.action_type === 'panorama' ? '→' : 'i';
+  icon.textContent = hotspot.action_type === 'panorama' ? 'â†’' : 'i';
 
   const label = document.createElement('span');
   label.className = 'hotspot-marker__label';
@@ -445,7 +445,7 @@ function showPhoto(item) {
   if (!el) return;
 
   if (typeof Marzipano === 'undefined') {
-    showError('Marzipano wurde nicht geladen. Bitte static/lib/marzipano.js prüfen.');
+    showError('Marzipano wurde nicht geladen. Bitte static/lib/marzipano.js prÃ¼fen.');
     return;
   }
 
@@ -496,7 +496,7 @@ function showVideo(item) {
   }
 
   if (typeof Video360Viewer === 'undefined') {
-    showError('Der lokale 360°-Video-Renderer wurde nicht geladen.');
+    showError('Der lokale 360Â°-Video-Renderer wurde nicht geladen.');
     return;
   }
 
@@ -515,7 +515,7 @@ function loadViewer(item) {
   const meta = document.getElementById('currentMeta');
 
   if (title) title.textContent = item.title || item.file_path || 'Unbenannt';
-  if (meta) meta.textContent = `${item.project || 'Default'}${item.category ? ' / ' + item.category : ''} · ${item.type}`;
+  if (meta) meta.textContent = `${item.project || 'Default'}${item.category ? ' / ' + item.category : ''} Â· ${item.type}`;
 
   if (item.type === 'photo') showPhoto(item);
   else if (item.type === 'video') showVideo(item);
@@ -592,7 +592,7 @@ function enterProjectionMode(projectionMode) {
 
   const imagePath = currentItem.file_path || currentItem.file;
   if (!imagePath) {
-    showViewerMessage('Dieses Foto hat keinen Dateipfad für die Projektion.');
+    showViewerMessage('Dieses Foto hat keinen Dateipfad fÃ¼r die Projektion.');
     return false;
   }
 
@@ -857,3 +857,4 @@ document.addEventListener('keydown', (event) => {
   if (event.key.toLowerCase() === 'f') toggleFullscreen();
   if (event.key.toLowerCase() === 'c') toggleCinematic();
 });
+

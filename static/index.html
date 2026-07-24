@@ -1,9 +1,9 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="de">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Panorama Studio</title>
+  <title>Offline360 Studio</title>
   <link rel="stylesheet" href="/static/lib/leaflet/leaflet.css" />
   <link rel="stylesheet" href="/static/lib/maplibre/maplibre-gl.css" />
   <link rel="stylesheet" href="/static/css/style.css" />
@@ -13,8 +13,8 @@
     <header class="brand">
       <div class="brand-mark">PS</div>
       <div>
-        <h1>Panorama Studio</h1>
-        <p>Offline 360° Showcase · <span id="appVersion">Version unbekannt</span></p>
+        <h1>Offline360 Studio</h1>
+        <p>Offline 360Â° Showcase Â· <span id="appVersion">Version unbekannt</span></p>
       </div>
     </header>
 
@@ -35,7 +35,7 @@
       </select>
     </label>
 
-    <input id="searchInput" class="search" placeholder="Suchen…" />
+    <input id="searchInput" class="search" placeholder="Suchenâ€¦" />
 
     <div class="filter-row">
       <select id="projectFilter"><option value="">Alle Projekte</option></select>
@@ -43,7 +43,7 @@
     </div>
     <div class="filter-row">
       <select id="categoryFilter"><option value="">Alle Kategorien</option></select>
-      <button id="favoritesOnlyBtn" class="toggle-btn">★ Favoriten</button>
+      <button id="favoritesOnlyBtn" class="toggle-btn">â˜… Favoriten</button>
     </div>
     <div class="filter-row view-row">
       <button id="listViewBtn" class="toggle-btn active">Liste</button>
@@ -76,7 +76,7 @@
         <section class="map-basemap-control" aria-labelledby="mapBasemapTitle">
           <h2 id="mapBasemapTitle">Basiskarte</h2>
           <label for="mapBasemapSelect">Quelle</label>
-          <select id="mapBasemapSelect" aria-label="Basiskarte auswählen">
+          <select id="mapBasemapSelect" aria-label="Basiskarte auswÃ¤hlen">
             <option value="">Keine Basiskarte</option>
           </select>
           <p id="mapBasemapStatus" class="map-basemap-status" role="status" aria-live="polite">
@@ -98,7 +98,7 @@
 
     <div class="topbar">
       <div>
-        <div id="currentTitle">Kein Medium gewählt</div>
+        <div id="currentTitle">Kein Medium gewÃ¤hlt</div>
         <div id="currentMeta" class="current-meta">Projekt / Kategorie</div>
       </div>
       <div class="stage-actions">
@@ -108,16 +108,16 @@
     </div>
 
     <nav id="tourNavigation" class="tour-navigation hidden" aria-label="Tour-Navigation">
-      <button id="tourPreviousBtn" type="button" aria-label="Vorheriges Medium">← Zurück</button>
+      <button id="tourPreviousBtn" type="button" aria-label="Vorheriges Medium">â† ZurÃ¼ck</button>
       <span id="tourPosition" aria-live="polite">0 / 0</span>
-      <button id="tourNextBtn" type="button" aria-label="Nächstes Medium">Weiter →</button>
+      <button id="tourNextBtn" type="button" aria-label="NÃ¤chstes Medium">Weiter â†’</button>
     </nav>
 
     <div class="viewer-controls" aria-label="Viewer Steuerung">
       <div id="viewModeLabel" class="view-mode-label" role="status">Kein Medium</div>
       <button id="zoomInBtn" title="Hineinzoomen (+)">+</button>
       <div id="zoomLabel" class="zoom-label">0%</div>
-      <button id="zoomOutBtn" title="Herauszoomen (-)">−</button>
+      <button id="zoomOutBtn" title="Herauszoomen (-)">âˆ’</button>
       <button id="homeBtn" title="Startansicht (H)">Home</button>
       <div id="projectionModeControls" class="projection-mode-controls" role="group" aria-label="Projektionsmodus" hidden>
         <button id="normalModeBtn" type="button" class="active" title="Normalansicht (Escape)" aria-label="Normalansicht" aria-pressed="true">Normal</button>
@@ -132,7 +132,7 @@
   <aside id="adminPanel" class="admin-panel hidden" aria-label="Administration">
     <div class="admin-header">
       <h2>Admin</h2>
-      <button id="closeAdminBtn" type="button" aria-label="Adminbereich schließen">×</button>
+      <button id="closeAdminBtn" type="button" aria-label="Adminbereich schlieÃŸen">Ã—</button>
     </div>
 
     <div class="admin-layout">
@@ -150,7 +150,7 @@
         <section id="adminSectionMedia" class="admin-section" role="tabpanel" aria-labelledby="adminTabMedia" data-admin-panel="media">
           <header class="admin-section-heading">
             <h3>Medien</h3>
-            <p>Dateien importieren, neu einlesen und Metadaten des gewählten Mediums bearbeiten.</p>
+            <p>Dateien importieren, neu einlesen und Metadaten des gewÃ¤hlten Mediums bearbeiten.</p>
           </header>
           <button id="rescanBtn" type="button">Medien neu einlesen</button>
           <label class="admin-upload-project">Upload-Projekt
@@ -158,7 +158,7 @@
           </label>
           <div id="dropZone" class="drop-zone">
             <strong>Dateien hier ablegen</strong>
-            <span>JPG, PNG, MP4 · automatisch ins Upload-Projekt</span>
+            <span>JPG, PNG, MP4 Â· automatisch ins Upload-Projekt</span>
             <input id="fileInput" type="file" multiple accept="image/*,video/mp4,video/quicktime" />
           </div>
           <ul id="uploadFilePreview" class="upload-file-preview hidden" aria-live="polite"></ul>
@@ -185,14 +185,14 @@
             </div>
             <label>Projekt
               <select id="adminProjectSelect">
-                <option value="">Projekt auswählen</option>
+                <option value="">Projekt auswÃ¤hlen</option>
               </select>
             </label>
             <form id="projectForm" novalidate>
               <label>Name<input id="projectName" required /></label>
               <label>Beschreibung<textarea id="projectDescription"></textarea></label>
               <div class="project-form-actions">
-                <button id="deleteProjectBtn" class="danger" type="button" disabled>Löschen</button>
+                <button id="deleteProjectBtn" class="danger" type="button" disabled>LÃ¶schen</button>
                 <button id="saveProjectBtn" type="submit">Projekt anlegen</button>
               </div>
             </form>
@@ -203,10 +203,10 @@
                 <div id="projectCoverPreview" class="project-cover-preview"></div>
               </div>
               <div class="project-media-add">
-                <select id="projectMediaSelect" multiple size="6" aria-label="Medien hinzufügen" aria-describedby="projectMediaSelectHelp"></select>
-                <button id="addProjectMediaBtn" type="button">Hinzufügen</button>
+                <select id="projectMediaSelect" multiple size="6" aria-label="Medien hinzufÃ¼gen" aria-describedby="projectMediaSelectHelp"></select>
+                <button id="addProjectMediaBtn" type="button">HinzufÃ¼gen</button>
               </div>
-              <p id="projectMediaSelectHelp" class="project-media-help">Mehrere Medien mit Strg oder Shift auswählen.</p>
+              <p id="projectMediaSelectHelp" class="project-media-help">Mehrere Medien mit Strg oder Shift auswÃ¤hlen.</p>
               <ol id="projectMediaList" class="project-media-list"></ol>
             </div>
           </div>
@@ -215,14 +215,14 @@
         <section id="adminSectionHotspots" class="admin-section" role="tabpanel" aria-labelledby="adminTabHotspots" data-admin-panel="hotspots" hidden>
           <header class="admin-section-heading">
             <h3>Hotspots</h3>
-            <p>Startansicht und Info- oder Panorama-Hotspots für das gewählte Panorama verwalten.</p>
+            <p>Startansicht und Info- oder Panorama-Hotspots fÃ¼r das gewÃ¤hlte Panorama verwalten.</p>
           </header>
           <div id="startViewControls" class="start-view-controls hidden">
             <button id="saveStartViewBtn" type="button">Aktuelle Ansicht als Start speichern</button>
-            <button id="resetStartViewBtn" type="button">Startansicht zurücksetzen</button>
+            <button id="resetStartViewBtn" type="button">Startansicht zurÃ¼cksetzen</button>
           </div>
-          <button id="addHotspotBtn" class="add-hotspot-btn hidden" type="button" aria-pressed="false">Hotspot hinzufügen</button>
-          <p class="admin-help">Vorhandene Hotspots werden direkt im Panorama angezeigt und können dort ausgewählt und bearbeitet werden.</p>
+          <button id="addHotspotBtn" class="add-hotspot-btn hidden" type="button" aria-pressed="false">Hotspot hinzufÃ¼gen</button>
+          <p class="admin-help">Vorhandene Hotspots werden direkt im Panorama angezeigt und kÃ¶nnen dort ausgewÃ¤hlt und bearbeitet werden.</p>
         </section>
 
         <section id="adminSectionMaps" class="admin-section" role="tabpanel" aria-labelledby="adminTabMaps" data-admin-panel="maps" hidden>
@@ -237,14 +237,14 @@
                 <label>Latitude<input id="gpsLatitude" type="number" min="-90" max="90" step="any" /></label>
                 <label>Longitude<input id="gpsLongitude" type="number" min="-180" max="180" step="any" /></label>
               </div>
-              <label>Höhe (Meter)<input id="gpsAltitude" type="number" step="any" /></label>
-              <p>Quelle: <strong id="gpsSource">–</strong></p>
+              <label>HÃ¶he (Meter)<input id="gpsAltitude" type="number" step="any" /></label>
+              <p>Quelle: <strong id="gpsSource">â€“</strong></p>
               <div class="gps-actions">
-                <button id="deleteGpsBtn" class="danger" type="button">Position löschen</button>
+                <button id="deleteGpsBtn" class="danger" type="button">Position lÃ¶schen</button>
                 <button type="submit">Manuell speichern</button>
               </div>
             </form>
-            <p id="gpsStatus" class="inline-status" role="status" aria-live="polite">Kein Medium gewählt.</p>
+            <p id="gpsStatus" class="inline-status" role="status" aria-live="polite">Kein Medium gewÃ¤hlt.</p>
           </section>
           <section class="gpx-admin" aria-labelledby="gpxTitle">
             <h4 id="gpxTitle">GPX-Tracks</h4>
@@ -265,7 +265,7 @@
             <h4 id="offlineMapsTitle">Offline-Karten</h4>
             <p>Lokale Raster-MBTiles (PNG, JPEG, WebP) oder Vector-MBTiles (PBF/MVT), maximal 5 GB.</p>
             <form id="offlineMapImportForm">
-              <label for="offlineMapFile">MBTiles-Datei auswählen
+              <label for="offlineMapFile">MBTiles-Datei auswÃ¤hlen
                 <input id="offlineMapFile" name="file" type="file" accept=".mbtiles" required />
               </label>
               <button id="offlineMapImportBtn" type="submit">Importieren</button>
@@ -289,43 +289,43 @@
             </div>
             <label class="backup-maps-option">
               <input id="backupIncludeMaps" type="checkbox" />
-              Offline-Karten einschließen (kann das Backup stark vergrößern)
+              Offline-Karten einschlieÃŸen (kann das Backup stark vergrÃ¶ÃŸern)
             </label>
             <form id="restoreForm" class="restore-form">
-              <label for="backupFile">ZIP-Backup auswählen
+              <label for="backupFile">ZIP-Backup auswÃ¤hlen
                 <input id="backupFile" name="file" type="file" accept=".zip,application/zip" required />
               </label>
-              <p id="backupFileName" class="backup-file-name">Keine Datei ausgewählt.</p>
+              <p id="backupFileName" class="backup-file-name">Keine Datei ausgewÃ¤hlt.</p>
               <p class="backup-warning">
                 Achtung: Ein Restore ersetzt die lokale Datenbank und Konfiguration.
-                Enthaltene Medien ersetzen außerdem das Medienverzeichnis.
+                Enthaltene Medien ersetzen auÃŸerdem das Medienverzeichnis.
                 Enthaltene Offline-Karten ersetzen das Kartenverzeichnis.
               </p>
               <button id="restoreBtn" class="danger" type="submit">Backup wiederherstellen</button>
             </form>
             <progress id="backupProgress" class="backup-progress hidden" max="100"></progress>
             <p id="backupStatus" class="backup-status" role="status" aria-live="polite">Bereit.</p>
-            <p class="backup-limit">Maximale ZIP- und entpackte Größe: 10 GB.</p>
+            <p class="backup-limit">Maximale ZIP- und entpackte GrÃ¶ÃŸe: 10 GB.</p>
           </section>
         </section>
 
         <section id="adminSectionExport" class="admin-section" role="tabpanel" aria-labelledby="adminTabExport" data-admin-panel="export" hidden>
           <header class="admin-section-heading">
             <h3>Export</h3>
-            <p>Eine eigenständige, offline nutzbare Tour bereitstellen.</p>
+            <p>Eine eigenstÃ¤ndige, offline nutzbare Tour bereitstellen.</p>
           </header>
           <section class="portable-export-admin" aria-labelledby="portableExportTitle">
             <h4 id="portableExportTitle">Portable Tour exportieren</h4>
-            <p>Eigenständige Offline-Tour mit statischem Viewer erzeugen.</p>
+            <p>EigenstÃ¤ndige Offline-Tour mit statischem Viewer erzeugen.</p>
             <form id="portableExportForm">
-              <label>Projekt auswählen
-                <select id="portableExportProject" required><option value="">Projekt auswählen</option></select>
+              <label>Projekt auswÃ¤hlen
+                <select id="portableExportProject" required><option value="">Projekt auswÃ¤hlen</option></select>
               </label>
               <label>Dateiname<input id="portableExportFilename" value="portable-tour" required /></label>
               <label class="check"><input id="portableExportZip" type="checkbox" checked /> ZIP erstellen</label>
-              <label class="check"><input id="portableExportVideos" type="checkbox" checked /> Videos einschließen</label>
-              <label class="check"><input id="portableExportMap" type="checkbox" /> Offline-Karte einschließen</label>
-              <label class="check"><input id="portableExportTracks" type="checkbox" /> GPX-Tracks einschließen</label>
+              <label class="check"><input id="portableExportVideos" type="checkbox" checked /> Videos einschlieÃŸen</label>
+              <label class="check"><input id="portableExportMap" type="checkbox" /> Offline-Karte einschlieÃŸen</label>
+              <label class="check"><input id="portableExportTracks" type="checkbox" /> GPX-Tracks einschlieÃŸen</label>
               <button id="portableExportBtn" type="submit">Tour exportieren</button>
             </form>
             <p id="portableExportStatus" class="portable-export-status" role="status" aria-live="polite">Bereit.</p>
@@ -336,7 +336,7 @@
         <section id="adminSectionSystem" class="admin-section" role="tabpanel" aria-labelledby="adminTabSystem" data-admin-panel="system" hidden>
           <header class="admin-section-heading">
             <h3>System</h3>
-            <p>Version, Laufzeitstatus und Diagnoseinformationen prüfen.</p>
+            <p>Version, Laufzeitstatus und Diagnoseinformationen prÃ¼fen.</p>
           </header>
           <p class="system-version">Installierte Version: <strong id="adminAppVersion">Version unbekannt</strong></p>
           <section class="diagnostics-admin" aria-labelledby="diagnosticsTitle">
@@ -355,7 +355,7 @@
   <dialog id="restoreConfirmDialog" class="hotspot-dialog backup-confirm-dialog" aria-labelledby="restoreConfirmTitle">
     <div class="hotspot-dialog__content">
       <h2 id="restoreConfirmTitle">Bestehende Daten ersetzen?</h2>
-      <p>Vor dem Restore wird automatisch ein vollständiges Sicherheitsbackup erstellt. Der Vorgang darf nicht unterbrochen werden.</p>
+      <p>Vor dem Restore wird automatisch ein vollstÃ¤ndiges Sicherheitsbackup erstellt. Der Vorgang darf nicht unterbrochen werden.</p>
       <div class="hotspot-dialog__actions backup-confirm-actions">
         <button id="cancelRestoreBtn" type="button">Abbrechen</button>
         <button id="confirmRestoreBtn" class="danger" type="button">Jetzt wiederherstellen</button>
@@ -368,7 +368,7 @@
       <h2 id="hotspotInfoTitle">Information</h2>
       <p id="hotspotInfoText"></p>
       <div class="hotspot-dialog__actions">
-        <button id="closeHotspotInfoBtn" type="button">Schließen</button>
+        <button id="closeHotspotInfoBtn" type="button">SchlieÃŸen</button>
       </div>
     </div>
   </dialog>
@@ -402,7 +402,7 @@
       </div>
       <p id="hotspotEditorError" class="form-error hidden" role="alert"></p>
       <div class="hotspot-editor-actions">
-        <button id="deleteHotspotBtn" class="danger hidden" type="button">Löschen</button>
+        <button id="deleteHotspotBtn" class="danger hidden" type="button">LÃ¶schen</button>
         <span></span>
         <button id="cancelHotspotBtn" type="button">Abbrechen</button>
         <button id="saveHotspotBtn" type="submit">Speichern</button>
@@ -426,3 +426,4 @@
   <script src="/static/js/projects.js"></script>
 </body>
 </html>
+

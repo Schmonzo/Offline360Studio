@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import hashlib
 import json
@@ -21,14 +21,14 @@ from core.migrations import LATEST_SCHEMA_VERSION, current_schema_version
 from core.version import __version__
 
 
-APP_NAME = "Panorama Studio"
+APP_NAME = "Offline360 Studio"
 APP_VERSION = __version__
 BACKUP_VERSION = 2
 LEGACY_BACKUP_VERSIONS = {1}
 MAX_BACKUP_SIZE = 10 * 1024 * 1024 * 1024
 MAX_ARCHIVE_FILES = 100_000
 MAX_MANIFEST_SIZE = 64 * 1024
-DATABASE_FILENAME = "panorama_studio.db"
+DATABASE_FILENAME = "OFFLINE360_STUDIO.db"
 CONFIG_EXTENSIONS = {".cfg", ".conf", ".ini", ".json", ".toml", ".yaml", ".yml"}
 MEDIA_EXTENSIONS = {
     "photos": {".jpg", ".jpeg", ".png"},
@@ -45,14 +45,14 @@ WINDOWS_RESERVED_NAMES = {
     *(f"LPT{number}" for number in range(1, 10)),
 }
 
-README_TEXT = """Panorama Studio backup
+README_TEXT = """Offline360 Studio backup
 
 This ZIP archive contains a consistent SQLite database backup and local
 configuration files. Media files are included only when manifest.json sets
 "includes_media" to true. Offline maps are included only when "includes_maps"
 is true.
 
-Restore this archive only through Panorama Studio's Backup & Restore section.
+Restore this archive only through Offline360 Studio's Backup & Restore section.
 Do not edit the archive or extract it over an installation manually.
 The maximum accepted ZIP size and extracted size are each 10 GB.
 """
@@ -156,7 +156,7 @@ def create_backup(
     includes_media: bool,
     output_dir: Path,
     *,
-    filename_prefix: str = "panorama-studio-backup",
+    filename_prefix: str = "offline360-studio-backup",
     maps_dir: Path | None = None,
     includes_maps: bool = False,
 ) -> BackupArtifact:
@@ -176,7 +176,7 @@ def create_backup(
             if maps_dir is None:
                 raise BackupError(
                     "maps_backup_unavailable",
-                    "Für dieses Backup ist kein Kartenverzeichnis konfiguriert.",
+                    "FÃ¼r dieses Backup ist kein Kartenverzeichnis konfiguriert.",
                     500,
                 )
             check_map_sources(database_copy, maps_dir, True)
@@ -253,7 +253,7 @@ def save_upload(stream: BinaryIO, destination: Path, max_size: int = MAX_BACKUP_
                 if written > max_size:
                     raise BackupError(
                         "backup_too_large",
-                        f"Das Backup überschreitet das Limit von {max_size // (1024**3)} GB.",
+                        f"Das Backup Ã¼berschreitet das Limit von {max_size // (1024**3)} GB.",
                         413,
                     )
                 target.write(chunk)
@@ -268,12 +268,12 @@ def save_upload(stream: BinaryIO, destination: Path, max_size: int = MAX_BACKUP_
 
 def _safe_member_path(name: str) -> PurePosixPath:
     if not name or "\x00" in name or "\\" in name:
-        raise BackupError("unsafe_archive_path", "Das Backup enthält einen unsicheren Pfad.")
+        raise BackupError("unsafe_archive_path", "Das Backup enthÃ¤lt einen unsicheren Pfad.")
     if name.startswith("/") or re.match(r"^[A-Za-z]:", name):
         raise BackupError("unsafe_archive_path", "Absolute Pfade sind im Backup nicht erlaubt.")
     path = PurePosixPath(name)
     if any(part in {"", ".", ".."} for part in path.parts):
-        raise BackupError("unsafe_archive_path", "Das Backup enthält einen unsicheren Pfad.")
+        raise BackupError("unsafe_archive_path", "Das Backup enthÃ¤lt einen unsicheren Pfad.")
     for part in path.parts:
         device_name = part.split(".", 1)[0].upper()
         if (
@@ -281,7 +281,7 @@ def _safe_member_path(name: str) -> PurePosixPath:
             or any(character in part for character in '<>:"|?*')
             or device_name in WINDOWS_RESERVED_NAMES
         ):
-            raise BackupError("unsafe_archive_path", "Das Backup enthält einen ungültigen Dateinamen.")
+            raise BackupError("unsafe_archive_path", "Das Backup enthÃ¤lt einen ungÃ¼ltigen Dateinamen.")
     return path
 
 
@@ -305,14 +305,14 @@ def _validate_expected_path(path: PurePosixPath, manifest: dict, is_dir: bool) -
         return
     if path.parts[0] == "config" and len(path.parts) >= 2:
         if path.suffix.lower() not in CONFIG_EXTENSIONS:
-            raise BackupError("invalid_file_type", f"Unzulässige Konfigurationsdatei: {name}")
+            raise BackupError("invalid_file_type", f"UnzulÃ¤ssige Konfigurationsdatei: {name}")
         return
     if path.parts[0] == "media" and len(path.parts) >= 3:
         media_kind = path.parts[1]
         if not manifest["includes_media"]:
             raise BackupError("unexpected_media", "Das Manifest deklariert keine Mediendateien.")
         if media_kind not in MEDIA_EXTENSIONS or path.suffix.lower() not in MEDIA_EXTENSIONS[media_kind]:
-            raise BackupError("invalid_file_type", f"Unzulässige Mediendatei: {name}")
+            raise BackupError("invalid_file_type", f"UnzulÃ¤ssige Mediendatei: {name}")
         return
     if path.parts[0] == "maps" and len(path.parts) == 2:
         if not manifest["includes_maps"]:
@@ -321,7 +321,7 @@ def _validate_expected_path(path: PurePosixPath, manifest: dict, is_dir: bool) -
             )
         if path.suffix.lower() != ".mbtiles":
             raise BackupError(
-                "invalid_file_type", f"Unzulässige Kartendatei: {name}"
+                "invalid_file_type", f"UnzulÃ¤ssige Kartendatei: {name}"
             )
         return
     raise BackupError("unexpected_archive_path", f"Unerwarteter Pfad im Backup: {name}")
@@ -333,11 +333,11 @@ def _read_manifest(archive: zipfile.ZipFile) -> dict:
     except KeyError as exc:
         raise BackupError("manifest_missing", "manifest.json fehlt im Backup.") from exc
     if info.file_size > MAX_MANIFEST_SIZE:
-        raise BackupError("manifest_invalid", "manifest.json ist zu groß.")
+        raise BackupError("manifest_invalid", "manifest.json ist zu groÃŸ.")
     try:
         manifest = json.loads(archive.read(info).decode("utf-8"))
     except (UnicodeDecodeError, json.JSONDecodeError, OSError) as exc:
-        raise BackupError("manifest_invalid", "manifest.json ist ungültig.") from exc
+        raise BackupError("manifest_invalid", "manifest.json ist ungÃ¼ltig.") from exc
     required = {
         "app_name": str,
         "app_version": str,
@@ -352,16 +352,16 @@ def _read_manifest(archive: zipfile.ZipFile) -> dict:
         key not in manifest or type(manifest[key]) is not expected
         for key, expected in required.items()
     ):
-        raise BackupError("manifest_invalid", "manifest.json enthält nicht alle erwarteten Felder.")
+        raise BackupError("manifest_invalid", "manifest.json enthÃ¤lt nicht alle erwarteten Felder.")
     if "includes_maps" in manifest and type(manifest["includes_maps"]) is not bool:
         raise BackupError("manifest_invalid", "includes_maps muss ein Boolean sein.")
     manifest["includes_maps"] = manifest.get("includes_maps", False)
     if manifest["app_name"] != APP_NAME:
-        raise BackupError("manifest_invalid", "Das Backup gehört nicht zu Panorama Studio.")
+        raise BackupError("manifest_invalid", "Das Backup gehÃ¶rt nicht zu Offline360 Studio.")
     if manifest["backup_version"] not in LEGACY_BACKUP_VERSIONS | {BACKUP_VERSION}:
         raise BackupError(
             "backup_version_unsupported",
-            f"Backup-Version {manifest['backup_version']} wird nicht unterstützt.",
+            f"Backup-Version {manifest['backup_version']} wird nicht unterstÃ¼tzt.",
         )
     if manifest["backup_version"] == BACKUP_VERSION:
         if type(manifest.get("schema_version")) is not int or not isinstance(
@@ -369,7 +369,7 @@ def _read_manifest(archive: zipfile.ZipFile) -> dict:
         ):
             raise BackupError(
                 "manifest_invalid",
-                "Das Backup-Manifest enthält keine Schema-Version oder Prüfsummen.",
+                "Das Backup-Manifest enthÃ¤lt keine Schema-Version oder PrÃ¼fsummen.",
             )
         if manifest["schema_version"] > LATEST_SCHEMA_VERSION:
             raise BackupError(
@@ -384,16 +384,16 @@ def _read_manifest(archive: zipfile.ZipFile) -> dict:
             ):
                 raise BackupError(
                     "manifest_invalid",
-                    "Das Backup-Manifest enthält ungültige Prüfsummen.",
+                    "Das Backup-Manifest enthÃ¤lt ungÃ¼ltige PrÃ¼fsummen.",
                 )
     database_name = manifest["database_filename"]
     if (
         database_name != Path(database_name).name
         or PurePosixPath(database_name).suffix.lower() not in {".db", ".sqlite", ".sqlite3"}
     ):
-        raise BackupError("manifest_invalid", "Der Datenbank-Dateiname im Manifest ist ungültig.")
+        raise BackupError("manifest_invalid", "Der Datenbank-Dateiname im Manifest ist ungÃ¼ltig.")
     if manifest["media_count"] < 0 or manifest["project_count"] < 0:
-        raise BackupError("manifest_invalid", "Die Zähler im Manifest sind ungültig.")
+        raise BackupError("manifest_invalid", "Die ZÃ¤hler im Manifest sind ungÃ¼ltig.")
     return manifest
 
 
@@ -402,7 +402,7 @@ def validate_and_extract(archive_path: Path, destination: Path) -> dict:
         with zipfile.ZipFile(archive_path, "r", allowZip64=True) as archive:
             infos = archive.infolist()
             if len(infos) > MAX_ARCHIVE_FILES:
-                raise BackupError("archive_too_many_files", "Das Backup enthält zu viele Dateien.")
+                raise BackupError("archive_too_many_files", "Das Backup enthÃ¤lt zu viele Dateien.")
             manifest = _read_manifest(archive)
             names: set[str] = set()
             names_casefold: set[str] = set()
@@ -412,25 +412,25 @@ def validate_and_extract(archive_path: Path, destination: Path) -> dict:
                 canonical_name = path.as_posix()
                 canonical_casefold = canonical_name.casefold()
                 if canonical_name in names or canonical_casefold in names_casefold:
-                    raise BackupError("duplicate_archive_path", "Das Backup enthält doppelte Pfade.")
+                    raise BackupError("duplicate_archive_path", "Das Backup enthÃ¤lt doppelte Pfade.")
                 names.add(canonical_name)
                 names_casefold.add(canonical_casefold)
                 if info.flag_bits & 0x1:
-                    raise BackupError("encrypted_archive", "Verschlüsselte ZIP-Einträge werden nicht unterstützt.")
+                    raise BackupError("encrypted_archive", "VerschlÃ¼sselte ZIP-EintrÃ¤ge werden nicht unterstÃ¼tzt.")
                 if _is_symlink(info):
                     raise BackupError("symlink_not_allowed", "Symlinks sind im Backup nicht erlaubt.")
                 mode_type = stat.S_IFMT(info.external_attr >> 16)
                 if mode_type not in {0, stat.S_IFREG, stat.S_IFDIR}:
-                    raise BackupError("invalid_file_type", "Das Backup enthält einen speziellen Dateityp.")
+                    raise BackupError("invalid_file_type", "Das Backup enthÃ¤lt einen speziellen Dateityp.")
                 _validate_expected_path(path, manifest, info.is_dir())
                 total_size += info.file_size
                 if total_size > MAX_BACKUP_SIZE:
-                    raise BackupError("backup_too_large", "Der entpackte Inhalt überschreitet das Größenlimit.", 413)
+                    raise BackupError("backup_too_large", "Der entpackte Inhalt Ã¼berschreitet das GrÃ¶ÃŸenlimit.", 413)
             required_names = {"manifest.json", "README.txt", manifest["database_filename"]}
             if not required_names.issubset(names):
-                raise BackupError("backup_incomplete", "Das Backup enthält nicht alle Pflichtdateien.")
+                raise BackupError("backup_incomplete", "Das Backup enthÃ¤lt nicht alle Pflichtdateien.")
             if archive.testzip() is not None:
-                raise BackupError("archive_corrupt", "Die ZIP-Datei ist beschädigt.")
+                raise BackupError("archive_corrupt", "Die ZIP-Datei ist beschÃ¤digt.")
             if manifest["backup_version"] == BACKUP_VERSION:
                 payload_names = {
                     info.filename
@@ -440,7 +440,7 @@ def validate_and_extract(archive_path: Path, destination: Path) -> dict:
                 if payload_names != set(manifest["files"]):
                     raise BackupError(
                         "backup_incomplete",
-                        "Die Dateiliste stimmt nicht mit dem Backup-Manifest überein.",
+                        "Die Dateiliste stimmt nicht mit dem Backup-Manifest Ã¼berein.",
                     )
                 for name, expected_digest in manifest["files"].items():
                     digest = hashlib.sha256()
@@ -450,7 +450,7 @@ def validate_and_extract(archive_path: Path, destination: Path) -> dict:
                     if digest.hexdigest() != expected_digest:
                         raise BackupError(
                             "checksum_mismatch",
-                            f"Prüfsumme ungültig: {PurePosixPath(name).name}",
+                            f"PrÃ¼fsumme ungÃ¼ltig: {PurePosixPath(name).name}",
                         )
             destination.mkdir(parents=True, exist_ok=True)
             for info in infos:
@@ -466,7 +466,7 @@ def validate_and_extract(archive_path: Path, destination: Path) -> dict:
     except BackupError:
         raise
     except (zipfile.BadZipFile, zipfile.LargeZipFile, OSError, EOFError) as exc:
-        raise BackupError("archive_corrupt", "Die Datei ist kein gültiges ZIP-Backup.") from exc
+        raise BackupError("archive_corrupt", "Die Datei ist kein gÃ¼ltiges ZIP-Backup.") from exc
 
 
 def check_database(database_path: Path) -> None:
@@ -476,7 +476,7 @@ def check_database(database_path: Path) -> None:
         ) as conn:
             result = conn.execute("PRAGMA integrity_check").fetchone()
             if result is None or result[0] != "ok":
-                raise BackupError("database_integrity_failed", "Die Backup-Datenbank ist beschädigt.")
+                raise BackupError("database_integrity_failed", "Die Backup-Datenbank ist beschÃ¤digt.")
             tables = {
                 row[0]
                 for row in conn.execute(
@@ -491,12 +491,12 @@ def check_database(database_path: Path) -> None:
             if conn.execute("PRAGMA foreign_key_check").fetchone() is not None:
                 raise BackupError(
                     "database_integrity_failed",
-                    "Die Backup-Datenbank verletzt Fremdschlüsselbeziehungen.",
+                    "Die Backup-Datenbank verletzt FremdschlÃ¼sselbeziehungen.",
                 )
     except BackupError:
         raise
     except sqlite3.Error as exc:
-        raise BackupError("database_integrity_failed", "Die Backup-Datenbank ist ungültig.") from exc
+        raise BackupError("database_integrity_failed", "Die Backup-Datenbank ist ungÃ¼ltig.") from exc
 
 
 def check_map_sources(
@@ -516,7 +516,7 @@ def check_map_sources(
                 if includes_maps:
                     raise BackupError(
                         "database_schema_invalid",
-                        "Dem Backup fehlen Metadaten für die Offline-Karten.",
+                        "Dem Backup fehlen Metadaten fÃ¼r die Offline-Karten.",
                     )
                 return
             filenames = {
@@ -526,7 +526,7 @@ def check_map_sources(
     except sqlite3.Error as exc:
         raise BackupError(
             "database_schema_invalid",
-            "Die Kartenmetadaten in der Backup-Datenbank sind ungültig.",
+            "Die Kartenmetadaten in der Backup-Datenbank sind ungÃ¼ltig.",
         ) from exc
     for filename in filenames:
         if (
@@ -536,14 +536,14 @@ def check_map_sources(
         ):
             raise BackupError(
                 "invalid_map_path",
-                "Die Backup-Datenbank enthält einen ungültigen Kartenpfad.",
+                "Die Backup-Datenbank enthÃ¤lt einen ungÃ¼ltigen Kartenpfad.",
             )
     if includes_maps:
         archived = {path.name for path in _map_files(extracted_maps)}
         if archived != filenames:
             raise BackupError(
                 "maps_manifest_mismatch",
-                "Kartendateien und Kartenmetadaten im Backup stimmen nicht überein.",
+                "Kartendateien und Kartenmetadaten im Backup stimmen nicht Ã¼berein.",
             )
 
 
@@ -599,7 +599,7 @@ def restore_backup(
             if maps_dir is None:
                 raise BackupError(
                     "maps_restore_unavailable",
-                    "Für diesen Restore ist kein Kartenverzeichnis konfiguriert.",
+                    "FÃ¼r diesen Restore ist kein Kartenverzeichnis konfiguriert.",
                     500,
                 )
             for map_path in _map_files(extracted / "maps"):
@@ -608,18 +608,18 @@ def restore_backup(
                 except mbtiles.MBTilesError as exc:
                     raise BackupError(
                         "invalid_map_file",
-                        f"Ungültige MBTiles-Datei im Backup: {map_path.name}",
+                        f"UngÃ¼ltige MBTiles-Datei im Backup: {map_path.name}",
                     ) from exc
         actual_media_count, actual_project_count = _database_counts(incoming_database)
         if actual_project_count != manifest["project_count"]:
             raise BackupError(
                 "manifest_mismatch",
-                "Die Projektanzahl stimmt nicht mit dem Manifest überein.",
+                "Die Projektanzahl stimmt nicht mit dem Manifest Ã¼berein.",
             )
         if actual_media_count != manifest["media_count"]:
             raise BackupError(
                 "manifest_mismatch",
-                "Die Medienanzahl stimmt nicht mit dem Manifest überein.",
+                "Die Medienanzahl stimmt nicht mit dem Manifest Ã¼berein.",
             )
 
         safety_artifact = create_backup(
@@ -677,7 +677,7 @@ def restore_backup(
         return {
             "status": "ok",
             "restart_required": True,
-            "message": "Restore erfolgreich. Bitte Panorama Studio neu starten.",
+            "message": "Restore erfolgreich. Bitte Offline360 Studio neu starten.",
             "safety_backup": safety_artifact.filename,
             "manifest": manifest,
         }
@@ -696,3 +696,4 @@ def restore_backup(
             else:
                 path.unlink(missing_ok=True)
         shutil.rmtree(staging_root, ignore_errors=True)
+

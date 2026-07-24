@@ -1,4 +1,4 @@
-package main
+﻿package main
 
 import (
 	"bytes"
@@ -301,3 +301,4 @@ func TestNoMapConfigured(t *testing.T) {
 		t.Fatalf("unexpected response: %d %s", response.Code, response.Body.String())
 	}
 }
+

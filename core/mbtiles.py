@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import gzip
 import io
@@ -98,7 +98,7 @@ def save_upload(
                 if written > max_size:
                     raise MBTilesError(
                         "map_too_large",
-                        f"Die MBTiles-Datei überschreitet das Limit von "
+                        f"Die MBTiles-Datei Ã¼berschreitet das Limit von "
                         f"{max_size // (1024**3)} GB.",
                         413,
                     )
@@ -123,7 +123,7 @@ def _optional_zoom(value: str | None, field: str) -> int | None:
         result = int(value)
     except ValueError as exc:
         raise MBTilesError(
-            "invalid_metadata", f"Das MBTiles-Feld {field} ist ungültig."
+            "invalid_metadata", f"Das MBTiles-Feld {field} ist ungÃ¼ltig."
         ) from exc
     if not 0 <= result <= 30:
         raise MBTilesError(
@@ -229,7 +229,7 @@ def detect_schema(conn: sqlite3.Connection) -> str:
         return "normalized"
     raise MBTilesError(
         "tiles_schema_invalid" if "tiles" in objects else "tiles_table_missing",
-        "Weder ein gültiges tiles-Schema noch ein gültiges map/images-Schema gefunden.",
+        "Weder ein gÃ¼ltiges tiles-Schema noch ein gÃ¼ltiges map/images-Schema gefunden.",
     )
 
 
@@ -239,7 +239,7 @@ def validate(path: Path, fallback_name: str) -> Metadata:
             integrity = conn.execute("PRAGMA quick_check").fetchone()
             if integrity is None or integrity[0] != "ok":
                 raise MBTilesError(
-                    "invalid_mbtiles", "Die MBTiles-Datei ist beschädigt."
+                    "invalid_mbtiles", "Die MBTiles-Datei ist beschÃ¤digt."
                 )
             tables = {
                 str(row[0]).lower()
@@ -250,7 +250,7 @@ def validate(path: Path, fallback_name: str) -> Metadata:
             if "metadata" not in tables:
                 raise MBTilesError(
                     "metadata_table_missing",
-                    "Die MBTiles-Datei enthält keine metadata-Tabelle.",
+                    "Die MBTiles-Datei enthÃ¤lt keine metadata-Tabelle.",
                 )
             schema_type = detect_schema(conn)
             metadata_columns = {
@@ -278,7 +278,7 @@ def validate(path: Path, fallback_name: str) -> Metadata:
             if tileset_type is None:
                 raise MBTilesError(
                     "map_format_unsupported",
-                    "Das Format der Kartenquelle wird nicht unterstützt.",
+                    "Das Format der Kartenquelle wird nicht unterstÃ¼tzt.",
                     415,
                 )
             declared_type = values.get("type", "").lower()
@@ -289,7 +289,7 @@ def validate(path: Path, fallback_name: str) -> Metadata:
             if declared_type not in allowed_declared_types:
                 raise MBTilesError(
                     "map_type_unsupported",
-                    "Der deklarierte MBTiles-Kartentyp wird nicht unterstützt.",
+                    "Der deklarierte MBTiles-Kartentyp wird nicht unterstÃ¼tzt.",
                     415,
                 )
             if schema_type == "flat":
@@ -311,7 +311,7 @@ def validate(path: Path, fallback_name: str) -> Metadata:
                 if missing_images is not None and int(missing_images[0]) > 0:
                     raise MBTilesError(
                         "tile_references_invalid",
-                        "Das map-Schema enthält Verweise auf fehlende Bilder.",
+                        "Das map-Schema enthÃ¤lt Verweise auf fehlende Bilder.",
                     )
                 zooms = conn.execute(
                     """
@@ -323,7 +323,7 @@ def validate(path: Path, fallback_name: str) -> Metadata:
                 ).fetchone()
             if zooms is None or int(zooms[2]) < 1:
                 raise MBTilesError(
-                    "tiles_empty", "Die MBTiles-Datei enthält keine Kartenkacheln."
+                    "tiles_empty", "Die MBTiles-Datei enthÃ¤lt keine Kartenkacheln."
                 )
             if (
                 tileset_type == "vector"
@@ -332,7 +332,7 @@ def validate(path: Path, fallback_name: str) -> Metadata:
             ):
                 raise MBTilesError(
                     "vector_tile_too_large",
-                    "Die MBTiles-Datei enthält eine zu große PBF-Kachel.",
+                    "Die MBTiles-Datei enthÃ¤lt eine zu groÃŸe PBF-Kachel.",
                     413,
                 )
             min_zoom = _optional_zoom(values.get("minzoom"), "minzoom")
@@ -344,11 +344,11 @@ def validate(path: Path, fallback_name: str) -> Metadata:
             if not 0 <= min_zoom <= 30 or not 0 <= max_zoom <= 30:
                 raise MBTilesError(
                     "invalid_metadata",
-                    "Die Kachel-Zoomstufen müssen zwischen 0 und 30 liegen.",
+                    "Die Kachel-Zoomstufen mÃ¼ssen zwischen 0 und 30 liegen.",
                 )
             if min_zoom > max_zoom:
                 raise MBTilesError(
-                    "invalid_metadata", "minzoom darf nicht größer als maxzoom sein."
+                    "invalid_metadata", "minzoom darf nicht grÃ¶ÃŸer als maxzoom sein."
                 )
             json_metadata = _metadata_json(values.get("json"))
             vector_layers = (
@@ -372,7 +372,7 @@ def validate(path: Path, fallback_name: str) -> Metadata:
     except (sqlite3.Error, OSError, ValueError, OverflowError) as exc:
         raise MBTilesError(
             "invalid_mbtiles",
-            "Die Datei ist keine gültige oder lesbare MBTiles-SQLite-Datenbank.",
+            "Die Datei ist keine gÃ¼ltige oder lesbare MBTiles-SQLite-Datenbank.",
         ) from exc
 
 
@@ -386,13 +386,13 @@ def source_path(maps_dir: Path, filename: str) -> Path:
         or Path(filename).name != filename
         or re.fullmatch(r"[0-9a-f]{32}\.mbtiles", filename) is None
     ):
-        raise MBTilesError("invalid_map_path", "Der Kartenpfad ist ungültig.", 500)
+        raise MBTilesError("invalid_map_path", "Der Kartenpfad ist ungÃ¼ltig.", 500)
     root = maps_dir.resolve()
     candidate = (root / filename).resolve()
     try:
         candidate.relative_to(root)
     except ValueError as exc:
-        raise MBTilesError("invalid_map_path", "Der Kartenpfad ist ungültig.", 500) from exc
+        raise MBTilesError("invalid_map_path", "Der Kartenpfad ist ungÃ¼ltig.", 500) from exc
     return candidate
 
 
@@ -417,7 +417,7 @@ def read_tile(
 ) -> bytes | None:
     if schema_type not in SCHEMA_TYPES:
         raise MBTilesError(
-            "map_schema_invalid", "Das gespeicherte MBTiles-Schema ist ungültig.", 500
+            "map_schema_invalid", "Das gespeicherte MBTiles-Schema ist ungÃ¼ltig.", 500
         )
     tms_y = (2**z - 1) - xyz_y
     try:
@@ -452,7 +452,7 @@ def read_tile(
 def vector_tile_encoding(tile: bytes) -> str | None:
     if len(tile) > MAX_VECTOR_TILE_SIZE:
         raise MBTilesError(
-            "vector_tile_too_large", "Die angeforderte PBF-Kachel ist zu groß.", 413
+            "vector_tile_too_large", "Die angeforderte PBF-Kachel ist zu groÃŸ.", 413
         )
     if tile.startswith(b"\x1f\x8b"):
         try:
@@ -461,13 +461,13 @@ def vector_tile_encoding(tile: bytes) -> str | None:
         except (EOFError, OSError) as exc:
             raise MBTilesError(
                 "vector_tile_compression_invalid",
-                "Die gzip-komprimierte PBF-Kachel ist ungültig.",
+                "Die gzip-komprimierte PBF-Kachel ist ungÃ¼ltig.",
                 415,
             ) from exc
         if len(decoded) > MAX_DECOMPRESSED_VECTOR_TILE_SIZE:
             raise MBTilesError(
                 "vector_tile_too_large",
-                "Die entpackte PBF-Kachel überschreitet das Größenlimit.",
+                "Die entpackte PBF-Kachel Ã¼berschreitet das GrÃ¶ÃŸenlimit.",
                 413,
             )
         return "gzip"
@@ -478,7 +478,7 @@ def vector_tile_encoding(tile: bytes) -> str | None:
     ):
         raise MBTilesError(
             "vector_tile_compression_unsupported",
-            "Die PBF-Kachel verwendet eine nicht unterstützte zlib-Kompression.",
+            "Die PBF-Kachel verwendet eine nicht unterstÃ¼tzte zlib-Kompression.",
             415,
         )
     return None
@@ -586,7 +586,7 @@ def generate_style(source_id: int, source: dict) -> dict:
 
     style: dict = {
         "version": 8,
-        "name": "Panorama Studio Offline-Basisstil",
+        "name": "Offline360 Studio Offline-Basisstil",
         "sources": {"offline-tiles": tile_source},
         "layers": layers,
     }
@@ -595,3 +595,4 @@ def generate_style(source_id: int, source: dict) -> dict:
         style["center"] = center[:2]
         style["zoom"] = center[2]
     return style
+

@@ -1,4 +1,4 @@
-module panorama-studio/portable-server
+module offline360-studio/portable-server
 
 go 1.25.0
 
@@ -15,3 +15,4 @@ require (
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
+

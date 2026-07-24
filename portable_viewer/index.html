@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="de">
 <head>
   <meta charset="utf-8" />
@@ -11,12 +11,12 @@
 <body>
   <section id="fileNotice" class="startup hidden" role="alert">
     <h1>Portable Tour</h1>
-    <p>Diese Tour kann aus Sicherheitsgründen nicht direkt über <code>file://</code> geladen werden.</p>
+    <p>Diese Tour kann aus SicherheitsgrÃ¼nden nicht direkt Ã¼ber <code>file://</code> geladen werden.</p>
     <p><strong>Bitte start-tour.bat verwenden.</strong></p>
   </section>
   <div id="app" class="app hidden">
     <header>
-      <button id="galleryBtn" type="button">← Galerie</button>
+      <button id="galleryBtn" type="button">â† Galerie</button>
       <div><strong id="projectName"></strong><span id="projectDescription"></span></div>
       <button id="mapBtn" type="button">Karte</button>
     </header>
@@ -26,11 +26,11 @@
         <div id="viewer" class="viewer"></div>
         <div class="viewer-title"><strong id="mediaTitle"></strong><span id="mediaDescription"></span></div>
         <div class="viewer-actions">
-          <button id="previousBtn" type="button" aria-label="Vorheriges Medium">←</button>
+          <button id="previousBtn" type="button" aria-label="Vorheriges Medium">â†</button>
           <button id="normalBtn" type="button">Normal</button>
           <button id="tinyBtn" type="button">Tiny Planet</button>
           <button id="rabbitBtn" type="button">Rabbit Hole</button>
-          <button id="nextBtn" type="button" aria-label="Nächstes Medium">→</button>
+          <button id="nextBtn" type="button" aria-label="NÃ¤chstes Medium">â†’</button>
         </div>
       </section>
       <section id="mapScreen" class="map-screen hidden">
@@ -39,7 +39,7 @@
       </section>
     </main>
   </div>
-  <dialog id="infoDialog"><h2 id="infoTitle">Information</h2><p id="infoText"></p><button id="closeInfoBtn" type="button">Schließen</button></dialog>
+  <dialog id="infoDialog"><h2 id="infoTitle">Information</h2><p id="infoText"></p><button id="closeInfoBtn" type="button">SchlieÃŸen</button></dialog>
   <script>
     if (location.protocol === 'file:') document.getElementById('fileNotice').classList.remove('hidden');
     else document.getElementById('app').classList.remove('hidden');
@@ -52,3 +52,4 @@
   <script src="assets/js/viewer.js"></script>
 </body>
 </html>
+

@@ -1,4 +1,4 @@
-(() => {
+﻿(() => {
   'use strict';
 
   function mapType(source) {
@@ -44,3 +44,4 @@
     rendererFor
   });
 })();
+
