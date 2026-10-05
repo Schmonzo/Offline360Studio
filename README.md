@@ -1,20 +1,20 @@
 ﻿# Offline360 Studio
 
-Die aktuelle Produktversion wird ausschlieÃŸlich in `core/version.py` gepflegt.
+Die aktuelle Produktversion wird ausschliesslich in `core/version.py` gepflegt.
 App, Admin-Diagnose, Exporte, Backups und Release-Build lesen diese Quelle.
-Der sichtbare Header lÃ¤dt `GET /api/version`; nur die Darstellung ergÃ¤nzt
-konsistent ein `v`-PrÃ¤fix. API-, Diagnose- und Artefaktwerte bleiben ohne PrÃ¤fix.
+Der sichtbare Header laedt `GET /api/version`; nur die Darstellung ergÃ¤nzt
+konsistent ein `v`-Praefix. API-, Diagnose- und Artefaktwerte bleiben ohne Praefix.
 
 ## Stabilisierung und Windows-Betrieb
 
 Beim Start werden Daten- und Medienverzeichnisse, Schreibrechte, Datenbank,
 Migrationen und der SHA-256-Hash des portablen Servers geprÃ¼ft. Kritische
-Fehler beenden den Start verstÃ¤ndlich; ein fehlender portabler Server erzeugt
+Fehler beenden den Start verstaendlich; ein fehlender portabler Server erzeugt
 eine Warnung. Strukturierte Logs rotieren unter
 `logs/offline360-studio.log` (5 Ã— 5 MiB).
 
 Der Adminbereich bietet eine Systemdiagnose mit Laufzeitversionen,
-Schema-Version, gekÃ¼rzten Pfaden, Speicherplatz, ObjektzÃ¤hlern,
+Schema-Version, gekuerzten Pfaden, Speicherplatz, Objektzaehlern,
 Schreibrechtstatus, Serverstatus und letzter Backup-Zeit. Der Bericht steht
 auch unter `GET /api/diagnostics/report` als JSON bereit.
 
@@ -23,21 +23,21 @@ Installation. Der Windows-Release kann in zwei Varianten gebaut werden:
 
 - `-Mode dev` (Standard) setzt Python 3 und die Pakete aus
   `requirements.txt` auf dem Zielsystem voraus.
-- `-Mode standalone` enthÃ¤lt CPython 3.12.10 und alle Python-AbhÃ¤ngigkeiten.
-  Es ist keine Python-Installation nÃ¶tig.
+- `-Mode standalone` enthaelt CPython 3.12.10 und alle Python-AbhÃ¤ngigkeiten.
+  Es ist keine Python-Installation noetig.
 
 Beide Varianten laufen nach dem Entpacken ohne CDN- oder Internetzugriffe.
-Im Standalone-Paket startet die Batchdatei ausschlieÃŸlich
+Im Standalone-Paket startet die Batchdatei ausschliesslich
 `runtime\python\python.exe`; `data\`, `media\` und `logs\` liegen neben
 `app\` unter der Paketwurzel.
 
 ## Portabler Offline-Tour-Export
 
 Im Adminbereich erzeugt **Portable Tour exportieren** aus einem Projekt eine
-eigenstÃ¤ndige ZIP-Datei. Sie enthÃ¤lt Projektdaten als `tour.json`, einen
+eigenstÃ¤ndige ZIP-Datei. Sie enthaelt Projektdaten als `tour.json`, einen
 separaten statischen Viewer, lokale JavaScript-/CSS-Bibliotheken und die
-ausgewÃ¤hlten Medien, GPX-Tracks und MBTiles. Der Viewer verwendet weder Flask
-noch die offline360-studio-Datenbank und fÃ¼hrt keine CDN-, API- oder sonstigen
+ausgewaehlten Medien, GPX-Tracks und MBTiles. Der Viewer verwendet weder Flask
+noch die offline360-studio-Datenbank und fuehrt keine CDN-, API- oder sonstigen
 Netzwerkzugriffe aus.
 
 ```text
@@ -58,18 +58,18 @@ portable-tour/
     tracks/
 ```
 
-Das direkte Ã–ffnen von `index.html` Ã¼ber `file://` zeigt absichtlich einen
+Das direkte Oeffnen von `index.html` ueber `file://` zeigt absichtlich einen
 Hinweis, weil Browser lokale `fetch()`- und Modulzugriffe blockieren.
-`start-tour.bat` startet die mitexportierte `server.exe`; der ausschlieÃŸlich
-auf `127.0.0.1` gebundene Server wÃ¤hlt einen freien Port und Ã¶ffnet danach
+`start-tour.bat` startet die mitexportierte `server.exe`; der ausschliesslich
+auf `127.0.0.1` gebundene Server wÃ¤hlt einen freien Port und oeffnet danach
 den Standardbrowser. Die EXE wird reproduzierbar aus
 `tools/portable-server/` gebaut. Fehlt sie, bricht der Export mit einem
 Hinweis auf `build.ps1` ab. Beim Export erfolgen keine Downloads.
 
-Fotos, 360Â°-Videos, Startansichten, Panorama- und Info-Hotspots,
+Fotos, 360°-Videos, Startansichten, Panorama- und Info-Hotspots,
 Tiny Planet/Rabbit Hole, Galerie, Tastatursteuerung, GPS-Marker und
-GPX-Linien werden vom statischen Viewer unterstÃ¼tzt. Raster- und
-Vector-MBTiles werden einschlieÃŸlich Metadaten exportiert. Der portable
+GPX-Linien werden vom statischen Viewer unterstuetzt. Raster- und
+Vector-MBTiles werden einschliesslich Metadaten exportiert. Der portable
 Server liefert Flat- und normalisierte MBTiles Ã¼ber lokale Endpunkte aus.
 Leaflet rendert Rasterkarten, MapLibre Vektorkarten; der lokale Vector-Stil
 verwendet keine externen Fonts, Glyphs, Sprites oder Styles.
@@ -78,15 +78,15 @@ verwendet keine externen Fonts, Glyphs, Sprites oder Styles.
 
 Im Admin-Bereich lassen sich Raster-MBTiles (PNG, JPEG, WebP) und
 Vector-MBTiles (PBF/MVT) als lokale Basiskarte importieren. Flat- und
-normalisierte `map`/`images`-Schemas werden unterstÃ¼tzt. Die maximale
-ImportgrÃ¶ÃŸe betrÃ¤gt 5 GB.
+normalisierte `map`/`images`-Schemas werden unterstuetzt. Die maximale
+Importgroe@e betrae¤gt 5 GB.
 
 Die Dateien bleiben separat unter `data/maps/`; in
 `data/OFFLINE360_STUDIO.db` stehen nur Metadaten und der serverseitig erzeugte
-Dateiname. Ohne aktive oder mit einer nicht verfÃ¼gbaren Kartenquelle zeigt
+Dateiname. Ohne aktive oder mit einer nicht verfuegbaren Kartenquelle zeigt
 die Karte weiterhin den neutralen Hintergrund. Rasterkarten, Medienmarker
 und GPX verwenden Leaflet. Vektorkarten werden mit dem lokal eingebundenen
-MapLibre GL JS gerendert; der automatisch erzeugte Basisstil benÃ¶tigt keine
+MapLibre GL JS gerendert; der automatisch erzeugte Basisstil benoetigt keine
 Fonts, Sprites oder externen URLs.
 
 API:
@@ -107,7 +107,7 @@ Ein Backup enthÃ¤lt:
 - `manifest.json` mit App-, Schema- und Formatversion sowie SHA-256 jeder Datei
 - `README.txt`
 - `OFFLINE360_STUDIO.db` als konsistente SQLite-Kopie
-- unterstÃ¼tzte Konfigurationsdateien aus `data/config/` unter `config/`
+- unterstuetzte Konfigurationsdateien aus `data/config/` unter `config/`
 - optional Fotos, Videos und Vorschaubilder unter `media/`
 - optional Offline-Karten unter `maps/`
 
@@ -119,15 +119,15 @@ enthalten sind.
 `{"includes_media": false, "includes_maps": false}`.
 `POST /api/backup/import` erwartet das ZIP im Multipart-Feld `file`.
 
-Die maximale ZIP-GrÃ¶ÃŸe und die maximale entpackte GrÃ¶ÃŸe betragen jeweils
-10 GB. Vor jedem Restore wird unter `data/backups/` ein vollstÃ¤ndiges
+Die maximale ZIP-Groesse und die maximale entpackte Groesse betragen jeweils
+10 GB. Vor jedem Restore wird unter `data/backups/` ein vollstae¤ndiges
 Sicherheitsbackup angelegt. Nach einem erfolgreichen Restore muss Panorama
 Studio neu gestartet werden.
 
-Backups ohne Medien lassen vorhandene Mediendateien beim Restore unverÃ¤ndert.
+Backups ohne Medien lassen vorhandene Mediendateien beim Restore unveraendert.
 Backups mit Medien ersetzen das lokale Medienverzeichnis.
 
-Das aktuelle Backupformat prÃ¼ft Dateiliste und PrÃ¼fsummen vollstÃ¤ndig vor dem
+Das aktuelle Backupformat prueft Dateiliste und PrÃ¼fsummen vollstÃ¤ndig vor dem
 Entpacken. Manipulierte oder unvollstÃ¤ndige Archive sowie Backups mit neuerer
 Schema-Version werden abgelehnt. Legacy-Backups des bisherigen Formats bleiben
 lesbar, soweit Datenbank- und InhaltsprÃ¼fung erfolgreich sind.
