@@ -1,4 +1,4 @@
-param(
+﻿param(
     [ValidateSet("dev", "standalone")]
     [string]$Mode = "dev"
 )
@@ -18,7 +18,7 @@ $EmbeddedPythonSha256 = "4acbed6dd1c744b0376e3b1cf57ce906f9dc9e95e68824584c8099a
 # The embeddable distribution has no pip. This bootstrap file is downloaded
 # only by the release build and is verified before it is executed.
 $GetPipUrl = "https://bootstrap.pypa.io/get-pip.py"
-$GetPipSha256 = "a341e1a43e38001c551a1508a73ff23636a11970b61d901d9a1cad2a18f57055"
+$GetPipSha256 = "fb24e693bab954209a063d90953621412ccad4a500905a726286e038f508ddf6"
 $BuildPipVersion = "25.1.1"
 
 $Repo = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path
@@ -298,4 +298,5 @@ Dieses Paket installiert nichts und laedt keine Komponenten nach.
     }
     Pop-Location
 }
+
 
