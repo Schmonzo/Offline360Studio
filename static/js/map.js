@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   'use strict';
 
   const mapCanvas = document.getElementById('mapCanvas');
@@ -183,7 +183,7 @@
 
   function createLeafletRenderer() {
     if (typeof L === 'undefined') {
-      throw new Error('Leaflet ist lokal nicht verfÃ¼gbar.');
+      throw new Error('Leaflet ist lokal nicht verfügbar.');
     }
     rendererType = 'raster';
     map = L.map(mapCanvas, {
@@ -215,7 +215,7 @@
 
   function normalizeMapLibreStyle(style) {
     if (!style || typeof style !== 'object' || Array.isArray(style)) {
-      throw new Error('Der Offline-Kartenstil ist ungÃ¼ltig.');
+      throw new Error('Der Offline-Kartenstil ist ungültig.');
     }
     Object.values(style.sources || {}).forEach(source => {
       if (!source || typeof source !== 'object') return;
@@ -294,7 +294,7 @@
 
   async function createMapLibreRenderer(source) {
     if (typeof maplibregl === 'undefined') {
-      throw new Error('MapLibre GL JS ist lokal nicht verfÃ¼gbar.');
+      throw new Error('MapLibre GL JS ist lokal nicht verfügbar.');
     }
     rendererType = 'vector';
     activeSourceId = source.source_id;
@@ -325,7 +325,7 @@
     map.on('error', event => {
       if (generation !== rendererGeneration) return;
       const message = event.error?.message || 'Vector-Kartendaten konnten nicht geladen werden.';
-      tileStatus.textContent = `Offline-Vector-Karte nicht verfÃ¼gbar: ${message}`;
+      tileStatus.textContent = `Offline-Vector-Karte nicht verfügbar: ${message}`;
       tileStatus.classList.remove('hidden');
     });
   }
@@ -403,7 +403,7 @@
           destroyRenderer();
           createLeafletRenderer();
         }
-        useNeutralBackground('Die aktive Offline-Karte ist ungÃ¼ltig oder ihre Datei fehlt.');
+        useNeutralBackground('Die aktive Offline-Karte ist ungültig oder ihre Datei fehlt.');
       } else if (renderer === 'maplibre') {
         if (rendererType !== 'vector' || activeSourceId !== source.source_id) {
           destroyRenderer();
@@ -445,7 +445,7 @@
         destroyRenderer();
         createLeafletRenderer();
       }
-      useNeutralBackground(`Offline-Karte nicht verfÃ¼gbar: ${error.message}`);
+      useNeutralBackground(`Offline-Karte nicht verfügbar: ${error.message}`);
     }
   }
 
@@ -476,8 +476,8 @@
         const marker = L.marker([item.latitude, item.longitude], {
           icon: markerIcon(active),
           keyboard: true,
-          title: item.title || 'Medium Ã¶ffnen',
-          alt: item.title || 'Medium Ã¶ffnen',
+          title: item.title || 'Medium öffnen',
+          alt: item.title || 'Medium öffnen',
           zIndexOffset: active ? 1000 : 0
         });
         marker.on('click', () => {
@@ -498,7 +498,7 @@
       },
       properties: {
         id: item.id,
-        title: item.title || 'Medium Ã¶ffnen',
+        title: item.title || 'Medium öffnen',
         active: selectedItem?.id === item.id
       }
     }))));
@@ -651,7 +651,7 @@
     hideAllMapTracksBtn.disabled = available.length === 0;
     if (!available.length) {
       const empty = document.createElement('p');
-      empty.textContent = 'Keine GPX-Tracks fÃ¼r den aktuellen Projektfilter verfÃ¼gbar.';
+      empty.textContent = 'Keine GPX-Tracks für den aktuellen Projektfilter verfügbar.';
       mapTrackList.appendChild(empty);
       return;
     }
@@ -687,13 +687,13 @@
       const assignment = track.project_id === null
         ? 'ohne Projekt'
         : (projectNames.get(String(track.project_id)) || `Projekt ${track.project_id}`);
-      name.textContent = `${track.name} (${track.point_count} Punkte Â· ${assignment})`;
+      name.textContent = `${track.name} (${track.point_count} Punkte · ${assignment})`;
       header.append(checkbox, name);
       const actions = document.createElement('div');
       actions.className = 'gpx-track-actions';
       actions.append(
         createButton('Zeit zuordnen', '', () => matchTrack(track)),
-        createButton('LÃ¶schen', 'danger', () => deleteTrack(track))
+        createButton('Löschen', 'danger', () => deleteTrack(track))
       );
       row.append(header, actions);
       trackList.appendChild(row);
@@ -786,11 +786,11 @@
     document.getElementById('gpsLatitude').value = item?.latitude ?? '';
     document.getElementById('gpsLongitude').value = item?.longitude ?? '';
     document.getElementById('gpsAltitude').value = item?.altitude ?? '';
-    document.getElementById('gpsSource').textContent = item?.gps_source || 'â€“';
+    document.getElementById('gpsSource').textContent = item?.gps_source || '–';
     [...gpsForm.elements].forEach(element => {
       element.disabled = !item;
     });
-    setStatus(gpsStatus, item ? 'Bereit.' : 'Kein Medium gewÃ¤hlt.');
+    setStatus(gpsStatus, item ? 'Bereit.' : 'Kein Medium gewählt.');
     renderMarkers();
   }
 
@@ -822,7 +822,7 @@
     if (!selectedItem) return;
     try {
       await jsonRequest(`/api/media/${selectedItem.id}/gps`, { method: 'DELETE' });
-      setStatus(gpsStatus, 'Position gelÃ¶scht.');
+      setStatus(gpsStatus, 'Position gelöscht.');
       await window.reloadMedia?.();
       await refreshMap();
     } catch (error) {
@@ -837,7 +837,7 @@
     const body = new FormData();
     body.append('file', file);
     body.append('project_id', gpxProject.value);
-    setStatus(gpxStatus, 'GPX wird importiert â€¦');
+    setStatus(gpxStatus, 'GPX wird importiert …');
     try {
       const data = await jsonRequest('/api/gpx/import', { method: 'POST', body });
       document.getElementById('gpxFile').value = '';
@@ -855,7 +855,7 @@
       visibleTrackIds.delete(track.id);
       hiddenTrackIds.delete(track.id);
       storeTrackVisibility();
-      setStatus(gpxStatus, `${track.name} wurde gelÃ¶scht.`);
+      setStatus(gpxStatus, `${track.name} wurde gelöscht.`);
       await loadTracks();
       if (mapMode) fitContent();
     } catch (error) {
@@ -865,7 +865,7 @@
 
   async function matchTrack(track) {
     const difference = Number(document.getElementById('gpxMatchDifference').value);
-    setStatus(gpxStatus, `${track.name}: Medien werden zugeordnet â€¦`);
+    setStatus(gpxStatus, `${track.name}: Medien werden zugeordnet …`);
     try {
       const data = await jsonRequest(`/api/gpx/tracks/${track.id}/match-media`, {
         method: 'POST',
@@ -877,7 +877,7 @@
       });
       setStatus(
         gpxStatus,
-        `${data.matched} zugeordnet, ${data.skipped} Ã¼bersprungen, ${data.unmatched} ohne Treffer.`
+        `${data.matched} zugeordnet, ${data.skipped} übersprungen, ${data.unmatched} ohne Treffer.`
       );
       await window.reloadMedia?.();
       await refreshMap();

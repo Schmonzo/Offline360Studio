@@ -1,17 +1,17 @@
-﻿# Offline360 Studio
+# Offline360 Studio
 
 Die aktuelle Produktversion wird ausschliesslich in `core/version.py` gepflegt.
 App, Admin-Diagnose, Exporte, Backups und Release-Build lesen diese Quelle.
-Der sichtbare Header laedt `GET /api/version`; nur die Darstellung ergÃ¤nzt
+Der sichtbare Header laedt `GET /api/version`; nur die Darstellung ergänzt
 konsistent ein `v`-Praefix. API-, Diagnose- und Artefaktwerte bleiben ohne Praefix.
 
 ## Stabilisierung und Windows-Betrieb
 
 Beim Start werden Daten- und Medienverzeichnisse, Schreibrechte, Datenbank,
-Migrationen und der SHA-256-Hash des portablen Servers geprÃ¼ft. Kritische
+Migrationen und der SHA-256-Hash des portablen Servers geprüft. Kritische
 Fehler beenden den Start verstaendlich; ein fehlender portabler Server erzeugt
 eine Warnung. Strukturierte Logs rotieren unter
-`logs/offline360-studio.log` (5 Ã— 5 MiB).
+`logs/offline360-studio.log` (5 × 5 MiB).
 
 Der Adminbereich bietet eine Systemdiagnose mit Laufzeitversionen,
 Schema-Version, gekuerzten Pfaden, Speicherplatz, Objektzaehlern,
@@ -23,7 +23,7 @@ Installation. Der Windows-Release kann in zwei Varianten gebaut werden:
 
 - `-Mode dev` (Standard) setzt Python 3 und die Pakete aus
   `requirements.txt` auf dem Zielsystem voraus.
-- `-Mode standalone` enthaelt CPython 3.12.10 und alle Python-AbhÃ¤ngigkeiten.
+- `-Mode standalone` enthaelt CPython 3.12.10 und alle Python-Abhängigkeiten.
   Es ist keine Python-Installation noetig.
 
 Beide Varianten laufen nach dem Entpacken ohne CDN- oder Internetzugriffe.
@@ -34,7 +34,7 @@ Im Standalone-Paket startet die Batchdatei ausschliesslich
 ## Portabler Offline-Tour-Export
 
 Im Adminbereich erzeugt **Portable Tour exportieren** aus einem Projekt eine
-eigenstÃ¤ndige ZIP-Datei. Sie enthaelt Projektdaten als `tour.json`, einen
+eigenständige ZIP-Datei. Sie enthaelt Projektdaten als `tour.json`, einen
 separaten statischen Viewer, lokale JavaScript-/CSS-Bibliotheken und die
 ausgewaehlten Medien, GPX-Tracks und MBTiles. Der Viewer verwendet weder Flask
 noch die offline360-studio-Datenbank und fuehrt keine CDN-, API- oder sonstigen
@@ -61,7 +61,7 @@ portable-tour/
 Das direkte Oeffnen von `index.html` ueber `file://` zeigt absichtlich einen
 Hinweis, weil Browser lokale `fetch()`- und Modulzugriffe blockieren.
 `start-tour.bat` startet die mitexportierte `server.exe`; der ausschliesslich
-auf `127.0.0.1` gebundene Server wÃ¤hlt einen freien Port und oeffnet danach
+auf `127.0.0.1` gebundene Server wählt einen freien Port und oeffnet danach
 den Standardbrowser. Die EXE wird reproduzierbar aus
 `tools/portable-server/` gebaut. Fehlt sie, bricht der Export mit einem
 Hinweis auf `build.ps1` ab. Beim Export erfolgen keine Downloads.
@@ -70,7 +70,7 @@ Fotos, 360°-Videos, Startansichten, Panorama- und Info-Hotspots,
 Tiny Planet/Rabbit Hole, Galerie, Tastatursteuerung, GPS-Marker und
 GPX-Linien werden vom statischen Viewer unterstuetzt. Raster- und
 Vector-MBTiles werden einschliesslich Metadaten exportiert. Der portable
-Server liefert Flat- und normalisierte MBTiles Ã¼ber lokale Endpunkte aus.
+Server liefert Flat- und normalisierte MBTiles über lokale Endpunkte aus.
 Leaflet rendert Rasterkarten, MapLibre Vektorkarten; der lokale Vector-Stil
 verwendet keine externen Fonts, Glyphs, Sprites oder Styles.
 
@@ -102,7 +102,7 @@ API:
 ## Backup & Restore
 
 Der Admin-Bereich kann lokale Projektdaten als ZIP exportieren und wiederherstellen.
-Ein Backup enthÃ¤lt:
+Ein Backup enthält:
 
 - `manifest.json` mit App-, Schema- und Formatversion sowie SHA-256 jeder Datei
 - `README.txt`
@@ -111,7 +111,7 @@ Ein Backup enthÃ¤lt:
 - optional Fotos, Videos und Vorschaubilder unter `media/`
 - optional Offline-Karten unter `maps/`
 
-`media_count` und `project_count` geben die Anzahl der DatensÃ¤tze in der
+`media_count` und `project_count` geben die Anzahl der Datensätze in der
 SQLite-Datenbank an. `includes_media` zeigt an, ob auch die Mediendateien
 enthalten sind.
 
@@ -127,14 +127,14 @@ Studio neu gestartet werden.
 Backups ohne Medien lassen vorhandene Mediendateien beim Restore unveraendert.
 Backups mit Medien ersetzen das lokale Medienverzeichnis.
 
-Das aktuelle Backupformat prueft Dateiliste und PrÃ¼fsummen vollstÃ¤ndig vor dem
-Entpacken. Manipulierte oder unvollstÃ¤ndige Archive sowie Backups mit neuerer
+Das aktuelle Backupformat prueft Dateiliste und Prüfsummen vollständig vor dem
+Entpacken. Manipulierte oder unvollständige Archive sowie Backups mit neuerer
 Schema-Version werden abgelehnt. Legacy-Backups des bisherigen Formats bleiben
-lesbar, soweit Datenbank- und InhaltsprÃ¼fung erfolgreich sind.
+lesbar, soweit Datenbank- und Inhaltsprüfung erfolgreich sind.
 
 ## Datenbankmigrationen
 
-`core/migrations/` enthÃ¤lt geordnete additive Migrationen.
+`core/migrations/` enthält geordnete additive Migrationen.
 `schema_migrations` protokolliert jede erfolgreich abgeschlossene Migration
 genau einmal. Migrationen laufen transaktional und idempotent; automatische
 Downgrades gibt es nicht. Aktueller Stand ist Schema 3 (`initial`,
@@ -143,8 +143,8 @@ Downgrades gibt es nicht. Aktueller Stand ist Schema 3 (`initial`,
 ## Windows-Release
 
 `tools/release/build-release.ps1` verlangt einen sauberen Git-Arbeitsbaum,
-zeigt Branch und zentrale Version, fÃ¼hrt Python-, JavaScript- und Go-Tests aus,
-baut und prÃ¼ft `portable-server` und erzeugt ein deterministisches ZIP unter
+zeigt Branch und zentrale Version, führt Python-, JavaScript- und Go-Tests aus,
+baut und prüft `portable-server` und erzeugt ein deterministisches ZIP unter
 `build/release/`. Alle Laufzeitassets sind lokal.
 
 ```powershell
@@ -156,22 +156,22 @@ powershell -ExecutionPolicy Bypass -File tools/release/build-release.ps1 -Mode d
 powershell -ExecutionPolicy Bypass -File tools/release/build-release.ps1 -Mode standalone
 ```
 
-Die Ausgaben heiÃŸen
+Die Ausgaben heißen
 `Offline360Studio-<version>-win64-dev.zip` beziehungsweise
 `Offline360Studio-<version>-win64-standalone.zip`; daneben wird jeweils eine
-`.sha256`-Datei geschrieben. Der Standalone-Build lÃ¤dt bei leerem Cache das
-offizielle CPython-3.12.10-Embeddable-ZIP, das geprÃ¼fte `get-pip.py` und die
+`.sha256`-Datei geschrieben. Der Standalone-Build lädt bei leerem Cache das
+offizielle CPython-3.12.10-Embeddable-ZIP, das geprüfte `get-pip.py` und die
 gepinnten Pakete aus `requirements.txt`. Downloads und pip werden nur beim
 Build verwendet. Runtime und Bootstrap werden vor ihrer Verwendung gegen die
-im Skript dokumentierten SHA-256-Werte geprÃ¼ft. Verifizierte Dateien unter
+im Skript dokumentierten SHA-256-Werte geprüft. Verifizierte Dateien unter
 `tools/release/cache/` werden wiederverwendet und nicht versioniert.
 
-Bekannte EinschrÃ¤nkungen: Es gibt keinen Installer oder automatischen
-Updater. Browser-Codecs und WebGL sind systemabhÃ¤ngig; groÃŸe
-Medien-/MBTiles-BestÃ¤nde benÃ¶tigen ausreichend temporÃ¤ren Speicher. Der
-Standalone-Build benÃ¶tigt Windows x64 und bei leerem Cache Internetzugriff.
+Bekannte Einschränkungen: Es gibt keinen Installer oder automatischen
+Updater. Browser-Codecs und WebGL sind systemabhängig; große
+Medien-/MBTiles-Bestände benötigen ausreichend temporären Speicher. Der
+Standalone-Build benötigt Windows x64 und bei leerem Cache Internetzugriff.
 
 Offline-Karten werden nur gesichert und beim Restore ersetzt, wenn
 `includes_maps` im Manifest `true` ist. Diese Option ist wegen der
-potenziell groÃŸen Dateien standardmÃ¤ÃŸig deaktiviert.
+potenziell großen Dateien standardmäßig deaktiviert.
 

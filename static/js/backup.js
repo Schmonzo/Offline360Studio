@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   'use strict';
 
   const exportWithoutMediaBtn = document.getElementById('exportWithoutMediaBtn');
@@ -47,8 +47,8 @@
     if (pending) return;
     setPending(true);
     backupStatus.textContent = includesMedia
-      ? 'Backup mit Medien wird erstelltâ€¦'
-      : 'Backup ohne Medien wird erstelltâ€¦';
+      ? 'Backup mit Medien wird erstellt…'
+      : 'Backup ohne Medien wird erstellt…';
     try {
       const response = await fetch('/api/backup/export', {
         method: 'POST',
@@ -88,7 +88,7 @@
     if (!file || pending) return;
     closeConfirmDialog();
     setPending(true, 0);
-    backupStatus.textContent = 'Backup wird hochgeladen und geprÃ¼ftâ€¦';
+    backupStatus.textContent = 'Backup wird hochgeladen und geprüft…';
 
     const formData = new FormData();
     formData.append('file', file);
@@ -99,7 +99,7 @@
       if (!event.lengthComputable) return;
       const percent = Math.round((event.loaded / event.total) * 100);
       backupProgress.value = percent;
-      backupStatus.textContent = `Backup wird hochgeladenâ€¦ ${percent}%`;
+      backupStatus.textContent = `Backup wird hochgeladen… ${percent}%`;
     });
     request.addEventListener('load', () => {
       const data = request.response;
@@ -114,7 +114,7 @@
           ? `Restore erfolgreich. Sicherheitsbackup: ${safetyName}. Bitte Offline360 Studio neu starten.`
           : 'Restore erfolgreich. Bitte Offline360 Studio neu starten.';
         backupFile.value = '';
-        backupFileName.textContent = 'Keine Datei ausgewÃ¤hlt.';
+        backupFileName.textContent = 'Keine Datei ausgewählt.';
       }
       setPending(false);
     });
@@ -133,12 +133,12 @@
   exportWithMediaBtn.addEventListener('click', () => exportBackup(true));
   backupFile.addEventListener('change', () => {
     const file = backupFile.files?.[0];
-    backupFileName.textContent = file?.name || 'Keine Datei ausgewÃ¤hlt.';
+    backupFileName.textContent = file?.name || 'Keine Datei ausgewählt.';
   });
   restoreForm.addEventListener('submit', event => {
     event.preventDefault();
     if (!backupFile.files?.length || pending) {
-      backupStatus.textContent = 'Bitte zuerst eine ZIP-Datei auswÃ¤hlen.';
+      backupStatus.textContent = 'Bitte zuerst eine ZIP-Datei auswählen.';
       backupFile.focus();
       return;
     }

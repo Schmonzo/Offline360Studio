@@ -1,9 +1,9 @@
-﻿# Offline360 Studio Portable Server
+# Offline360 Studio Portable Server
 
-Der portable Server wird vollstÃ¤ndig aus dem Quellcode in diesem Verzeichnis
-gebaut. Er verwendet fÃ¼r HTTP ausschlieÃŸlich die Go-Standardbibliothek und
-fÃ¼r MBTiles den CGO-freien SQLite-Treiber `modernc.org/sqlite` in Version
-`v1.53.0`. Es gibt keine installierte LaufzeitabhÃ¤ngigkeit.
+Der portable Server wird vollständig aus dem Quellcode in diesem Verzeichnis
+gebaut. Er verwendet für HTTP ausschließlich die Go-Standardbibliothek und
+für MBTiles den CGO-freien SQLite-Treiber `modernc.org/sqlite` in Version
+`v1.53.0`. Es gibt keine installierte Laufzeitabhängigkeit.
 
 ## Voraussetzungen und reproduzierbarer Build
 
@@ -15,7 +15,7 @@ cd tools\portable-server
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-Das Skript fÃ¼hrt `go mod tidy`, `go test ./...` und anschlieÃŸend exakt diesen
+Das Skript führt `go mod tidy`, `go test ./...` und anschließend exakt diesen
 Cross-Build aus:
 
 ```powershell
@@ -26,20 +26,20 @@ go build -trimpath -ldflags="-s -w" -o server.exe .
 ```
 
 Danach stehen `server.exe` und `server.exe.sha256` in diesem Verzeichnis. Das
-Skript zeigt GrÃ¶ÃŸe und SHA-256 an. Eine vorhandene Datei lÃ¤sst sich prÃ¼fen mit:
+Skript zeigt Größe und SHA-256 an. Eine vorhandene Datei lässt sich prüfen mit:
 
 ```powershell
 Get-FileHash -Algorithm SHA256 .\server.exe
 Get-Content .\server.exe.sha256
 ```
 
-Der Exporter akzeptiert ausschlieÃŸlich diese `server.exe` zusammen mit ihrer
-Hashdatei. Der SHA-256-Eintrag muss mit der EXE Ã¼bereinstimmen.
+Der Exporter akzeptiert ausschließlich diese `server.exe` zusammen mit ihrer
+Hashdatei. Der SHA-256-Eintrag muss mit der EXE übereinstimmen.
 
 ## Betrieb
 
-Ohne Parameter ist der Webroot das Verzeichnis der EXE und der Server wÃ¤hlt
-einen freien Port auf `127.0.0.1`. Nach erfolgreichem Listen Ã¶ffnet er den
+Ohne Parameter ist der Webroot das Verzeichnis der EXE und der Server wählt
+einen freien Port auf `127.0.0.1`. Nach erfolgreichem Listen öffnet er den
 Standardbrowser.
 
 ```powershell
@@ -48,14 +48,14 @@ Standardbrowser.
 .\server.exe --root C:\Pfad\zur\portable-tour
 ```
 
-Der Server bietet statische Dateien sowie folgende ausschlieÃŸlich aus
+Der Server bietet statische Dateien sowie folgende ausschließlich aus
 `tour.json` konfigurierte MBTiles-Endpunkte:
 
 - `GET /api/maps/metadata`
 - `GET /api/maps/tiles/{z}/{x}/{y}`
 - `GET /api/maps/style.json`
 
-## AbhÃ¤ngigkeiten und Lizenzen
+## Abhängigkeiten und Lizenzen
 
 - Go-Standardbibliothek: Go-Projektlizenz (BSD-3-Clause)
 - `modernc.org/sqlite v1.53.0`: BSD-3-Clause
@@ -72,8 +72,8 @@ Der Server bietet statische Dateien sowie folgende ausschlieÃŸlich aus
 - `github.com/remyoudompheng/bigfft`: BSD-3-Clause
 - Der in `modernc.org/sqlite` portierte SQLite-Code: Public Domain
 
-Transitive Modulversionen und deren kryptografische Go-PrÃ¼fsummen werden von
+Transitive Modulversionen und deren kryptografische Go-Prüfsummen werden von
 `go mod tidy` in `go.sum` festgehalten. Die Quell- und Lizenzinformationen
-von `modernc.org/sqlite` befinden sich im Ã¶ffentlichen Modul-Repository:
+von `modernc.org/sqlite` befinden sich im öffentlichen Modul-Repository:
 <https://gitlab.com/cznic/sqlite>.
 

@@ -1,2 +1,2 @@
-﻿"""Core services for Offline360 Studio."""
+"""Core services for Offline360 Studio."""
 

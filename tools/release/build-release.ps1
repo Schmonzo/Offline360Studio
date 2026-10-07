@@ -1,4 +1,4 @@
-﻿param(
+param(
     [ValidateSet("dev", "standalone")]
     [string]$Mode = "dev"
 )

@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import math
 import sqlite3
@@ -156,7 +156,7 @@ class HotspotApiTests(unittest.TestCase):
 
         updated = self.client.patch(
             f"/api/hotspots/{hotspot['id']}",
-            json={"yaw": 1.25, "title": "Zur nÃ¤chsten Ansicht"},
+            json={"yaw": 1.25, "title": "Zur nächsten Ansicht"},
         )
         self.assertEqual(updated.status_code, 200)
         self.assertEqual(updated.get_json()["item"]["yaw"], 1.25)

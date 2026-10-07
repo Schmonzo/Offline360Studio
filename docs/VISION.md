@@ -1,4 +1,4 @@
-﻿\# Offline360 Studio Vision
+\# Offline360 Studio Vision
 
 
 
@@ -16,7 +16,7 @@ Stand: 02.07.2026
 
 
 
-Offline360 Studio ist eine vollstÃ¤ndig offlinefÃ¤hige Desktop-Anwendung zur Verwaltung, PrÃ¤sentation und Erstellung interaktiver 360Â°-Touren.
+Offline360 Studio ist eine vollständig offlinefähige Desktop-Anwendung zur Verwaltung, Präsentation und Erstellung interaktiver 360°-Touren.
 
 
 
@@ -24,13 +24,13 @@ Der Fokus liegt auf:
 
 
 
-\- vollstÃ¤ndiger Offline-Nutzung
+\- vollständiger Offline-Nutzung
 
 \- einfacher Bedienung
 
 \- hoher Performance
 
-\- professioneller PrÃ¤sentation
+\- professioneller Präsentation
 
 \- langfristiger Wartbarkeit
 
@@ -56,7 +56,7 @@ Offline360 Studio richtet sich an:
 
 \- Museen
 
-\- StÃ¤dte
+\- Städte
 
 \- Gemeinden
 
@@ -76,31 +76,31 @@ Offline360 Studio richtet sich an:
 
 
 
-\# UnterstÃ¼tzte Medien
+\# Unterstützte Medien
 
 
 
-âœ” 360Â° Fotos
+✔ 360° Fotos
 
 
 
-âœ” 360Â° Videos
+✔ 360° Videos
 
 
 
-âœ” normale Fotos
+✔ normale Fotos
 
 
 
-âœ” normale Videos
+✔ normale Videos
 
 
 
-âœ” Dokumente (PDF)
+✔ Dokumente (PDF)
 
 
 
-âœ” Audio
+✔ Audio
 
 
 
@@ -108,7 +108,7 @@ Offline360 Studio richtet sich an:
 
 
 
-\# UnterstÃ¼tzte Kameras
+\# Unterstützte Kameras
 
 
 
@@ -164,7 +164,7 @@ Offline360 Studio richtet sich an:
 
 
 
-\- flÃ¼ssiges Zoomen
+\- flüssiges Zoomen
 
 \- Vollbild
 
@@ -174,7 +174,7 @@ Offline360 Studio richtet sich an:
 
 \- Home-Position
 
-\- Touch-UnterstÃ¼tzung
+\- Touch-Unterstützung
 
 
 
@@ -298,7 +298,7 @@ macOS
 
 
 
-Offline360 Studio soll sich wie eine professionelle Desktop-Anwendung anfÃ¼hlen.
+Offline360 Studio soll sich wie eine professionelle Desktop-Anwendung anfühlen.
 
 
 
@@ -314,7 +314,7 @@ Nicht wie eine Webseite.
 
 
 
-Offline360 Studio soll eine der leistungsfÃ¤higsten Offline-LÃ¶sungen fÃ¼r virtuelle RundgÃ¤nge werden.
+Offline360 Studio soll eine der leistungsfähigsten Offline-Lösungen für virtuelle Rundgänge werden.
 
 
 

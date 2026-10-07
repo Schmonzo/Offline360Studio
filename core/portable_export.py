@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import hashlib
 import json
@@ -88,18 +88,18 @@ def _readme(
         f"Projekt: {project_name}\n\n"
         "Start\n"
         "1. start-tour.bat doppelklicken.\n"
-        "2. Die Tour Ã¶ffnet sich automatisch im Standardbrowser.\n"
-        "Direktes Ã–ffnen von index.html Ã¼ber file:// wird aus Browser-"
-        "SicherheitsgrÃ¼nden nicht unterstÃ¼tzt.\n\n"
-        "Diese Tour arbeitet vollstÃ¤ndig offline. Sie benÃ¶tigt weder Python, "
+        "2. Die Tour öffnet sich automatisch im Standardbrowser.\n"
+        "Direktes Öffnen von index.html über file:// wird aus Browser-"
+        "Sicherheitsgründen nicht unterstützt.\n\n"
+        "Diese Tour arbeitet vollständig offline. Sie benötigt weder Python, "
         "Flask noch eine Datenbank. Es werden keine CDN-, API- oder sonstigen "
-        "Netzwerkzugriffe ausgefÃ¼hrt. server.exe wurde reproduzierbar aus dem "
+        "Netzwerkzugriffe ausgeführt. server.exe wurde reproduzierbar aus dem "
         "mit Offline360 Studio gelieferten Go-Quellcode unter "
-        "tools/portable-server gebaut und vor dem Export per SHA-256 geprÃ¼ft.\n\n"
+        "tools/portable-server gebaut und vor dem Export per SHA-256 geprüft.\n\n"
         "Browserempfehlung\n"
         "Aktuelle Version von Microsoft Edge, Google Chrome oder Firefox mit "
         "aktiviertem WebGL.\n\n"
-        f"UngefÃ¤hre GrÃ¶ÃŸe der exportierten Projektdaten: {size_mib:.1f} MiB\n"
+        f"Ungefähre Größe der exportierten Projektdaten: {size_mib:.1f} MiB\n"
         f"{attribution}\n"
         "Lizenzhinweise\n"
         "- Marzipano: Apache License 2.0\n"
@@ -110,9 +110,9 @@ def _readme(
         "- modernc.org/sqlite: BSD-3-Clause; SQLite: Public Domain\n"
         "Die Lizenzdateien liegen unter assets/lib/; Marzipanos Apache-2.0-"
         "Hinweis steht im Kopf von marzipano.js.\n\n"
-        "Bekannte EinschrÃ¤nkungen\n"
+        "Bekannte Einschränkungen\n"
         f"{vector_limit}"
-        "- BrowserunterstÃ¼tzung fÃ¼r Video-Codecs ist systemabhÃ¤ngig.\n\n"
+        "- Browserunterstützung für Video-Codecs ist systemabhängig.\n\n"
         "Hinweise beim Export\n"
         f"{warning_text}\n"
     )
@@ -134,7 +134,7 @@ def _validated_server(server_executable: Path) -> tuple[Path, Path | None]:
         raise PortableExportError(
             "portable_server_missing",
             "Der portable Server wurde noch nicht gebaut. Bitte "
-            "tools/portable-server/build.ps1 ausfÃ¼hren.",
+            "tools/portable-server/build.ps1 ausführen.",
             503,
         )
     hash_file = expected.with_name("server.exe.sha256")
@@ -142,7 +142,7 @@ def _validated_server(server_executable: Path) -> tuple[Path, Path | None]:
         raise PortableExportError(
             "portable_server_hash_missing",
             "server.exe.sha256 fehlt. Bitte tools/portable-server/build.ps1 "
-            "erneut ausfÃ¼hren.",
+            "erneut ausführen.",
             500,
         )
     try:
@@ -150,13 +150,13 @@ def _validated_server(server_executable: Path) -> tuple[Path, Path | None]:
     except (OSError, UnicodeError, IndexError) as exc:
         raise PortableExportError(
             "portable_server_hash_invalid",
-            "server.exe.sha256 ist ungÃ¼ltig. Bitte den portablen Server neu bauen.",
+            "server.exe.sha256 ist ungültig. Bitte den portablen Server neu bauen.",
             500,
         ) from exc
     if re.fullmatch(r"[0-9a-f]{64}", expected_hash) is None:
         raise PortableExportError(
             "portable_server_hash_invalid",
-            "server.exe.sha256 ist ungÃ¼ltig. Bitte den portablen Server neu bauen.",
+            "server.exe.sha256 ist ungültig. Bitte den portablen Server neu bauen.",
             500,
         )
     digest = hashlib.sha256()
@@ -166,8 +166,8 @@ def _validated_server(server_executable: Path) -> tuple[Path, Path | None]:
     if digest.hexdigest() != expected_hash:
         raise PortableExportError(
             "portable_server_hash_mismatch",
-            "server.exe stimmt nicht mit server.exe.sha256 Ã¼berein. "
-            "Bitte tools/portable-server/build.ps1 erneut ausfÃ¼hren.",
+            "server.exe stimmt nicht mit server.exe.sha256 überein. "
+            "Bitte tools/portable-server/build.ps1 erneut ausführen.",
             500,
         )
     return expected, hash_file

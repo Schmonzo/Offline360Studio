@@ -1,4 +1,4 @@
-﻿# Third-Party Notices
+# Third-Party Notices
 
 Offline360 Studio includes third-party open-source components.
 

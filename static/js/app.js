@@ -1,4 +1,4 @@
-﻿let mediaItems = [];
+let mediaItems = [];
 let selectedItem = null;
 let stats = null;
 let favoritesOnly = false;
@@ -149,7 +149,7 @@ async function loadAppVersion() {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     if (typeof payload.version !== 'string' || !payload.version.trim()) {
-      throw new Error('UngÃ¼ltige Versionsantwort');
+      throw new Error('Ungültige Versionsantwort');
     }
     if (versionElement) versionElement.textContent = `v${payload.version}`;
     if (adminVersionElement) adminVersionElement.textContent = `v${payload.version}`;
@@ -167,7 +167,7 @@ function callOptionalUi(apiName, methodName, ...args) {
       console.warn(`${apiName}.${methodName} wurde asynchron abgebrochen:`, error);
     });
   } catch (error) {
-    console.warn(`${apiName}.${methodName} konnte nicht ausgefÃ¼hrt werden:`, error);
+    console.warn(`${apiName}.${methodName} konnte nicht ausgeführt werden:`, error);
   }
 }
 
@@ -258,7 +258,7 @@ function itemPreview(item) {
   }
   const preview = document.createElement('div');
   preview.className = 'video-thumb';
-  preview.textContent = item.type === 'video' ? 'ðŸŽ¬' : 'ðŸ“·';
+  preview.textContent = item.type === 'video' ? '🎬' : '📷';
   return preview;
 }
 
@@ -271,8 +271,8 @@ function itemCard(item) {
   body.className = 'item-body';
   title.className = 'item-title';
   meta.className = 'item-meta';
-  title.textContent = `${item.favorite ? 'â˜… ' : ''}${item.title || ''}`;
-  meta.textContent = `${item.project || 'Default'}${item.category ? ' Â· ' + item.category : ''} Â· ${item.type || ''}`;
+  title.textContent = `${item.favorite ? '★ ' : ''}${item.title || ''}`;
+  meta.textContent = `${item.project || 'Default'}${item.category ? ' · ' + item.category : ''} · ${item.type || ''}`;
   body.append(title, meta);
   row.append(itemPreview(item), body);
   row.onclick = () => selectItem(item);
@@ -308,7 +308,7 @@ function renderGallery() {
     const name = document.createElement('span');
     const count = document.createElement('small');
     h.className = 'project-heading';
-    name.textContent = `ðŸ“ ${project}`;
+    name.textContent = `📁 ${project}`;
     count.textContent = String(groupItems.length);
     h.append(name, count);
     gallery.appendChild(h);
@@ -335,7 +335,7 @@ function selectMediaById(mediaId) {
 
 function showNavigationMessage(message) {
   if (window.viewerControls?.openInfoDialog) {
-    window.viewerControls.openInfoDialog('Panorama nicht verfÃ¼gbar', message);
+    window.viewerControls.openInfoDialog('Panorama nicht verfügbar', message);
   } else {
     const status = document.getElementById('viewerMessage');
     if (!status) return;
@@ -347,15 +347,15 @@ function showNavigationMessage(message) {
 function openMediaById(mediaId) {
   const item = mediaItems.find(candidate => String(candidate.id) === String(mediaId));
   if (!item) {
-    showNavigationMessage('Das verknÃ¼pfte Zielpanorama wurde nicht gefunden.');
+    showNavigationMessage('Das verknüpfte Zielpanorama wurde nicht gefunden.');
     return false;
   }
   if (!item.visible) {
-    showNavigationMessage('Das verknÃ¼pfte Zielpanorama ist derzeit nicht sichtbar.');
+    showNavigationMessage('Das verknüpfte Zielpanorama ist derzeit nicht sichtbar.');
     return false;
   }
   if (item.type !== 'photo') {
-    showNavigationMessage('Das verknÃ¼pfte Ziel ist kein Panorama.');
+    showNavigationMessage('Das verknüpfte Ziel ist kein Panorama.');
     return false;
   }
 

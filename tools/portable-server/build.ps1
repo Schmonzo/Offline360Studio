@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$OutDir = $PSScriptRoot,
     [switch]$Tidy
 )
@@ -15,7 +15,7 @@ function Invoke-Go {
 }
 
 if (-not (Get-Command go -ErrorAction SilentlyContinue)) {
-    Write-Error "Go ist nicht installiert oder nicht im PATH. BenÃ¶tigt wird Go 1.25 oder neuer."
+    Write-Error "Go ist nicht installiert oder nicht im PATH. Benötigt wird Go 1.25 oder neuer."
     exit 1
 }
 

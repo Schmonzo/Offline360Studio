@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import gzip
 import io
@@ -253,7 +253,7 @@ class MBTilesApiTests(unittest.TestCase):
                 self.assert_error(response, 400, "tiles_table_missing")
                 self.assertEqual(
                     response.get_json()["error"]["message"],
-                    "Weder ein gÃ¼ltiges tiles-Schema noch ein gÃ¼ltiges "
+                    "Weder ein gültiges tiles-Schema noch ein gültiges "
                     "map/images-Schema gefunden.",
                 )
 

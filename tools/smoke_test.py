@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 import os
@@ -135,7 +135,7 @@ def main() -> int:
             if production_database.exists()
             else None
         )
-        assert current_state == production_state, "Produktive Datenbank wurde verÃ¤ndert."
+        assert current_state == production_state, "Produktive Datenbank wurde verändert."
     print("Smoke-Test erfolgreich.")
     return 0
 
